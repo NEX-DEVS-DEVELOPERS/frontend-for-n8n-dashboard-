@@ -1,0 +1,380 @@
+<!DOCTYPE html>
+<html lang="en" class="dark scroll-smooth">
+
+<head>
+  <meta charset="UTF-8" />
+  <link rel="icon" type="image/svg+xml" href="/n8n-logo.svg" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>n8n Agent Workflow Dashboard</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/gsap/3.12.5/gsap.min.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/gsap/3.12.5/ScrollToPlugin.min.js"></script>
+  <script>
+    gsap.registerPlugin(ScrollToPlugin);
+    tailwind.config = {
+      darkMode: 'class',
+      theme: {
+        extend: {
+          fontFamily: {
+            audiowide: ['"Inter"', 'ui-sans-serif', 'system-ui', 'sans-serif'],
+            sans: ['"Inter"', 'ui-sans-serif', 'system-ui', 'sans-serif'],
+            mono: ['ui-monospace', 'SFMono-Regular', 'Menlo', 'Monaco', 'Consolas', '"Liberation Mono"', '"Courier New"', 'monospace'],
+          },
+          colors: {
+            background: 'rgb(var(--background) / <alpha-value>)',
+            foreground: 'rgb(var(--foreground) / <alpha-value>)',
+            card: 'rgb(var(--card) / <alpha-value>)',
+            'card-foreground': 'rgb(var(--card-foreground) / <alpha-value>)',
+            primary: {
+              DEFAULT: 'rgb(var(--primary) / <alpha-value>)',
+              foreground: 'rgb(var(--primary-foreground) / <alpha-value>)',
+            },
+            muted: {
+              DEFAULT: 'rgb(var(--muted) / <alpha-value>)',
+              foreground: 'rgb(var(--muted-foreground) / <alpha-value>)',
+            },
+            border: 'rgb(var(--border) / <alpha-value>)',
+            input: 'rgb(var(--input) / <alpha-value>)',
+            ring: 'rgb(var(--ring) / <alpha-value>)',
+          },
+          borderRadius: {
+            xl: `1rem`,
+            lg: `0.75rem`,
+            md: `0.5rem`,
+            sm: `0.25rem`,
+          },
+          animation: {
+            'pulse-slow': 'pulse 3s cubic-bezier(0.4, 0, 0.6, 1) infinite',
+            'fade-in': 'fadeIn 0.5s ease-in-out',
+            'spin-slow': 'spin 3s linear infinite',
+          },
+          keyframes: {
+            fadeIn: {
+              '0%': { opacity: '0', transform: 'translateY(10px)' },
+              '100%': { opacity: '1', transform: 'translateY(0)' },
+            },
+          },
+          transitionTimingFunction: {
+            'custom-ease': 'cubic-bezier(0.16, 1, 0.3, 1)',
+          },
+        }
+      }
+    }
+  </script>
+  <style>
+    :root {
+      /* Premium Light Mode Variables (Bold & Crisp) */
+      /* Background: slightly darker slate to make white cards pop */
+      --background: 241 245 249;
+      --foreground: 15 23 42;
+      /* Slate 900 */
+      --card: 255 255 255;
+      --card-foreground: 15 23 42;
+
+      /* Primary: Darker teal for bold colored areas in light mode */
+      --primary: 13 148 136;
+      /* Teal 600 */
+      --primary-foreground: 255 255 255;
+
+      --muted: 226 232 240;
+      --muted-foreground: 71 85 105;
+      /* Slate 600 for better readability */
+
+      /* Border: Much darker base (Slate 500) so border/40 is distinct and bold */
+      --border: 100 116 139;
+
+      --input: 15 23 42;
+      --ring: 13 148 136;
+    }
+
+    .dark {
+      /* Dark Mode Variables (Deep & Glowing) */
+      --background: 5 5 5;
+      --foreground: 250 250 250;
+      --card: 10 10 10;
+      --card-foreground: 250 250 250;
+      --primary: 72 168 163;
+      /* n8n cyan (Lighter) */
+      --primary-foreground: 250 250 250;
+      --muted: 255 255 255;
+      --muted-foreground: 156 163 175;
+      --border: 255 255 255;
+      --input: 0 0 0;
+      --ring: 72 168 163;
+    }
+
+    /* Global smoothness optimizations */
+    html {
+      text-rendering: optimizeLegibility;
+      -webkit-font-smoothing: antialiased;
+      -moz-osx-font-smoothing: grayscale;
+    }
+
+    body {
+      transition: background-color 0.5s ease, color 0.5s ease;
+    }
+
+    /* === Light Mode Specific Boldness === */
+    html:not(.dark) .border,
+    html:not(.dark) .border-t,
+    html:not(.dark) .border-b,
+    html:not(.dark) .border-l,
+    html:not(.dark) .border-r,
+    html:not(.dark) .divide-y> :not([hidden])~ :not([hidden]),
+    html:not(.dark) .divide-x> :not([hidden])~ :not([hidden]) {
+      border-width: 1.5px;
+      /* Thicker borders for bold edges */
+    }
+
+    /* Make stroke icons bolder in light mode */
+    html:not(.dark) svg[fill="none"] {
+      stroke-width: 2px;
+      filter: drop-shadow(0 1px 0px rgba(0, 0, 0, 0.05));
+      /* Subtle depth */
+    }
+
+    /* === Animations === */
+
+    .will-change-scroll {
+      will-change: scroll-position;
+    }
+
+    .backface-hidden {
+      backface-visibility: hidden;
+      -webkit-backface-visibility: hidden;
+    }
+
+    /* Aurora Background Logic */
+    @keyframes move-aurora-1 {
+      0% {
+        transform: translate(0, 0) rotate(0deg);
+      }
+
+      50% {
+        transform: translate(40vw, 50vh) rotate(180deg);
+      }
+
+      100% {
+        transform: translate(0, 0) rotate(360deg);
+      }
+    }
+
+    @keyframes move-aurora-2 {
+      0% {
+        transform: translate(0, 0) rotate(0deg);
+      }
+
+      50% {
+        transform: translate(-30vw, -40vh) rotate(-180deg);
+      }
+
+      100% {
+        transform: translate(0, 0) rotate(-360deg);
+      }
+    }
+
+    @keyframes move-aurora-3 {
+      0% {
+        transform: translate(0, 0) rotate(0deg);
+      }
+
+      50% {
+        transform: translate(20vw, -60vh) rotate(120deg);
+      }
+
+      100% {
+        transform: translate(0, 0) rotate(360deg);
+      }
+    }
+
+    #aurora-background {
+      position: fixed;
+      top: 0;
+      left: 0;
+      width: 100%;
+      height: 100%;
+      z-index: -1;
+      overflow: hidden;
+      filter: blur(100px);
+      opacity: 0.5;
+      transition: opacity 0.5s ease;
+    }
+
+    /* In light mode, use subtle opacity */
+    html:not(.dark) #aurora-background {
+      opacity: 0.35;
+    }
+
+    .aurora-shape {
+      position: absolute;
+      opacity: 0.6;
+      border-radius: 9999px;
+    }
+
+    .shape-1 {
+      width: 400px;
+      height: 400px;
+      top: 10vh;
+      left: 20vw;
+      background: radial-gradient(circle, #48a8a3, transparent 60%);
+      animation: move-aurora-1 25s ease-in-out infinite;
+    }
+
+    .shape-2 {
+      width: 500px;
+      height: 500px;
+      top: 50vh;
+      left: 60vw;
+      background: radial-gradient(circle, #1e5f5c, transparent 60%);
+      animation: move-aurora-2 30s ease-in-out infinite;
+    }
+
+    .shape-3 {
+      width: 350px;
+      height: 350px;
+      bottom: 5vh;
+      left: 5vw;
+      background: radial-gradient(circle, #0077c2, transparent 60%);
+      animation: move-aurora-3 20s ease-in-out infinite;
+    }
+
+    /* Custom scrollbar for a cleaner look - Adaptive colors */
+    ::-webkit-scrollbar {
+      width: 8px;
+    }
+
+    ::-webkit-scrollbar-track {
+      background: transparent;
+      border-radius: 10px;
+    }
+
+    ::-webkit-scrollbar-thumb {
+      background: rgba(156, 163, 175, 0.4);
+      /* Neutral gray */
+      border-radius: 10px;
+    }
+
+    ::-webkit-scrollbar-thumb:hover {
+      background: rgba(156, 163, 175, 0.7);
+    }
+
+    /* Light mode scrollbar tweaks */
+    html:not(.dark) ::-webkit-scrollbar-thumb {
+      background: rgba(100, 116, 139, 0.3);
+    }
+
+    html:not(.dark) ::-webkit-scrollbar-thumb:hover {
+      background: rgba(100, 116, 139, 0.5);
+    }
+
+    /* Styles for animated checkmark icon */
+    .checkmark-circle {
+      stroke-dasharray: 166;
+      stroke-dashoffset: 166;
+      stroke-width: 2;
+      stroke-miterlimit: 10;
+      stroke: #48a8a3;
+      fill: none;
+      animation: stroke-draw-circle 0.6s cubic-bezier(0.65, 0, 0.45, 1) forwards;
+    }
+
+    .checkmark-check {
+      transform-origin: 50% 50%;
+      stroke-dasharray: 48;
+      stroke-dashoffset: 48;
+      stroke-width: 3;
+      stroke-linecap: round;
+      stroke: #48a8a3;
+      animation: stroke-draw-check 0.3s cubic-bezier(0.65, 0, 0.45, 1) 0.6s forwards;
+    }
+
+    @keyframes stroke-draw-circle {
+      to {
+        stroke-dashoffset: 0;
+      }
+    }
+
+    @keyframes stroke-draw-check {
+      to {
+        stroke-dashoffset: 0;
+      }
+    }
+
+    /* Styles for typing indicator */
+    @keyframes typing-dot-pulse {
+
+      0%,
+      80%,
+      100% {
+        transform: scale(0);
+        opacity: 0;
+      }
+
+      40% {
+        transform: scale(1.0);
+        opacity: 1;
+      }
+    }
+
+    .typing-dot {
+      animation: typing-dot-pulse 1.4s infinite ease-in-out both;
+    }
+
+    .typing-dot:nth-child(1) {
+      animation-delay: -0.32s;
+    }
+
+    .typing-dot:nth-child(2) {
+      animation-delay: -0.16s;
+    }
+
+    /* View Transition Animations - Optimized for 60FPS */
+    ::view-transition-old(root),
+    ::view-transition-new(root) {
+      animation: none;
+      mix-blend-mode: normal;
+      display: block;
+    }
+
+    /* Ensure the new view sits on top for the expanding effect */
+    ::view-transition-new(root) {
+      z-index: 9999;
+    }
+
+    ::view-transition-old(root) {
+      z-index: 1;
+    }
+
+    /* Prevent clicks during transition */
+    ::view-transition-group(root) {
+      pointer-events: none;
+    }
+  </style>
+  <script type="importmap">
+{
+  "imports": {
+    "react/": "https://aistudiocdn.com/react@^19.2.0/",
+    "react": "https://aistudiocdn.com/react@^19.2.0",
+    "react-dom/": "https://aistudiocdn.com/react-dom@^19.2.0/",
+    "@google/genai": "https://aistudiocdn.com/@google/genai@^1.29.1",
+    "gsap": "https://aistudiocdn.com/gsap@^3.13.0"
+  }
+}
+</script>
+</head>
+
+<body
+  class="bg-background text-foreground min-h-screen flex flex-col font-sans antialiased selection:bg-primary/30 selection:text-primary">
+  <div id="aurora-background">
+    <div class="aurora-shape shape-1"></div>
+    <div class="aurora-shape shape-2"></div>
+    <div class="aurora-shape shape-3"></div>
+  </div>
+  <div id="root" class="w-full flex-grow flex flex-col"></div>
+  <script type="module" src="/frontend/src/index.tsx"></script>
+</body>
+
+</html>
