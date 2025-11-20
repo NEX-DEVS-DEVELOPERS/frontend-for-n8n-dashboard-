@@ -26,7 +26,7 @@ const ThemeToggle: React.FC = () => {
 
   const toggleTheme = async (e: React.MouseEvent<HTMLButtonElement>) => {
     const newTheme = theme === 'dark' ? 'light' : 'dark';
-    
+
     // If the browser doesn't support View Transitions, fall back to standard toggle
     if (!document.startViewTransition) {
       setTheme(newTheme);
@@ -57,7 +57,7 @@ const ThemeToggle: React.FC = () => {
       `circle(0px at ${x}px ${y}px)`,
       `circle(${endRadius}px at ${x}px ${y}px)`,
     ];
-    
+
     document.documentElement.animate(
       {
         clipPath: clipPath,
@@ -81,15 +81,15 @@ const ThemeToggle: React.FC = () => {
   return (
     <button
       onClick={toggleTheme}
-      className="relative p-2.5 rounded-full bg-card/80 hover:bg-card border border-border/40 text-foreground/80 hover:text-primary transition-all duration-300 group overflow-hidden shadow-sm backdrop-blur-sm"
+      className="relative p-2 rounded-full bg-card/80 hover:bg-card border border-border/40 text-foreground/80 hover:text-primary transition-all duration-300 group overflow-hidden shadow-sm backdrop-blur-sm"
       title={`Switch to ${theme === 'dark' ? 'Light' : 'Dark'} Mode`}
     >
-      <div className="relative w-6 h-6">
+      <div className="relative w-5 h-5">
         <div className={`absolute inset-0 transform transition-transform duration-500 ${theme === 'dark' ? 'rotate-0 opacity-100' : '-rotate-90 opacity-0'}`}>
-             <MoonIcon className="w-6 h-6" />
+          <MoonIcon className="w-5 h-5" />
         </div>
         <div className={`absolute inset-0 transform transition-transform duration-500 ${theme === 'light' ? 'rotate-0 opacity-100' : 'rotate-90 opacity-0'}`}>
-             <SunIcon className="w-6 h-6" />
+          <SunIcon className="w-5 h-5" />
         </div>
       </div>
       <span className="sr-only">Toggle Theme</span>

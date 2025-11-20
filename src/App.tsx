@@ -653,6 +653,8 @@ const App: React.FC = () => {
         onLogout={handleLogout}
         userPlan={userPlan}
         agents={agents}
+        supportRequestCount={supportRequests.length}
+        weeklySupportLimit={weeklySupportLimit}
         onNavigateToSupport={() => {
           setCurrentPage('support');
           setShowUserDashboard(false);

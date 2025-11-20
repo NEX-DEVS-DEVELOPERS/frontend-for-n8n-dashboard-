@@ -22,6 +22,8 @@ interface UserDashboardPopupProps {
     onLogout: () => void;
     userPlan: PlanTier;
     agents: Agent[];
+    supportRequestCount: number;
+    weeklySupportLimit: number | 'Unlimited';
     onNavigateToSupport: () => void;
     onNavigateToPricing: () => void;
 }
@@ -40,6 +42,8 @@ const UserDashboardPopup: React.FC<UserDashboardPopupProps> = ({
     onLogout,
     userPlan,
     agents,
+    supportRequestCount,
+    weeklySupportLimit,
     onNavigateToSupport,
     onNavigateToPricing
 }) => {
@@ -122,7 +126,7 @@ const UserDashboardPopup: React.FC<UserDashboardPopupProps> = ({
     useEffect(() => {
         if (isOpen) {
             gsap.set(overlayRef.current, { autoAlpha: 0 });
-            gsap.set(popupRef.current, { autoAlpha: 0, y: 50, scale: 0.95 });
+            gsap.set(popupRef.current, { autoAlpha: 0, scale: 0.95, y: 20 });
 
             const tl = gsap.timeline();
             tl.to(overlayRef.current, {
@@ -132,18 +136,18 @@ const UserDashboardPopup: React.FC<UserDashboardPopupProps> = ({
             })
                 .to(popupRef.current, {
                     autoAlpha: 1,
-                    y: 0,
                     scale: 1,
-                    duration: 0.5,
-                    ease: 'back.out(1.4)'
-                }, '-=0.15');
+                    y: 0,
+                    duration: 0.4,
+                    ease: 'expo.out'
+                }, '-=0.2');
         } else if (popupRef.current && overlayRef.current) {
             const tl = gsap.timeline();
             tl.to(popupRef.current, {
                 autoAlpha: 0,
-                y: 30,
                 scale: 0.95,
-                duration: 0.25,
+                y: 20,
+                duration: 0.2,
                 ease: 'power2.in'
             })
                 .to(overlayRef.current, {
@@ -160,18 +164,18 @@ const UserDashboardPopup: React.FC<UserDashboardPopupProps> = ({
         // Animate out current content
         gsap.to(contentRef.current, {
             autoAlpha: 0,
-            x: -20,
-            duration: 0.2,
+            x: -10,
+            duration: 0.15,
             ease: 'power2.in',
             onComplete: () => {
                 setActiveTab(tab);
                 // Animate in new content
                 gsap.fromTo(contentRef.current,
-                    { autoAlpha: 0, x: 20 },
+                    { autoAlpha: 0, x: 10 },
                     {
                         autoAlpha: 1,
                         x: 0,
-                        duration: 0.3,
+                        duration: 0.2,
                         ease: 'power2.out'
                     }
                 );
@@ -248,34 +252,53 @@ const UserDashboardPopup: React.FC<UserDashboardPopupProps> = ({
         <div className="fixed inset-0 z-[60] flex items-center justify-center p-4">
             <div
                 ref={overlayRef}
-                className="absolute inset-0 bg-black/60 backdrop-blur-sm"
+                className="absolute inset-0 bg-black/60 backdrop-blur-md"
                 onClick={onClose}
             />
 
             <div
                 ref={popupRef}
-                className="relative w-full max-w-4xl bg-card border border-border/50 rounded-2xl shadow-2xl overflow-hidden flex max-h-[85vh]"
+                className="relative w-full max-w-4xl bg-card/80 backdrop-blur-2xl border border-border/20 rounded-2xl shadow-2xl overflow-hidden flex max-h-[85vh]"
             >
                 {/* Left Sidebar - Tabs */}
-                <div className="w-64 bg-muted/5 border-r border-border/30 p-4 flex flex-col">
+                <div className="w-60 bg-background/30 border-r border-border/20 p-4 flex flex-col">
                     {/* User Info Header */}
-                    <div className="mb-6 pb-4 border-b border-border/30">
+                    <div className="mb-6 pb-4 border-b border-border/20">
                         <div className="flex items-center gap-3 mb-3">
-                            <div className="h-12 w-12 rounded-full bg-primary/10 flex items-center justify-center border border-primary/20">
-                                <UserIcon className="h-6 w-6 text-primary" />
+                            <div className="h-10 w-10 rounded-full bg-primary/10 flex items-center justify-center border border-primary/20">
+                                <UserIcon className="h-5 w-5 text-primary" />
                             </div>
                             <div className="flex-1 min-w-0">
-                                <h2 className="text-base font-bold text-foreground leading-tight truncate">
+                                <h2 className="text-sm font-bold text-foreground leading-tight truncate">
                                     {userData?.name}
                                 </h2>
-                                <p className="text-xs text-muted-foreground truncate">{userData?.email}</p>
+                                <p className="text-[10px] text-muted-foreground truncate">{userData?.email}</p>
                             </div>
                         </div>
-                        <div className="flex items-center justify-between">
-                            <span className="text-xs text-muted-foreground">Current Plan</span>
-                            <span className="px-2 py-0.5 rounded-full bg-primary/10 text-primary text-xs font-bold uppercase border border-primary/20">
+                        <div className="flex items-center justify-between mb-2">
+                            <span className="text-[10px] text-muted-foreground">Current Plan</span>
+                            <span className="px-2 py-0.5 rounded-full bg-primary/10 text-primary text-[10px] font-bold uppercase border border-primary/20">
                                 {userPlan}
                             </span>
+                        </div>
+
+                        {/* Support Stats in Sidebar */}
+                        <div className="bg-muted/20 rounded-lg p-2 border border-border/10">
+                            <div className="flex items-center justify-between text-[10px] text-muted-foreground mb-1.5">
+                                <span className="flex items-center gap-1 font-semibold">
+                                    <ShieldCheckIcon className="h-3 w-3 text-primary/70" />
+                                    Support
+                                </span>
+                                <span className={weeklySupportLimit !== 'Unlimited' && supportRequestCount >= weeklySupportLimit ? "text-red-400 font-bold" : "text-foreground"}>
+                                    {supportRequestCount} / {weeklySupportLimit === 'Unlimited' ? '∞' : weeklySupportLimit}
+                                </span>
+                            </div>
+                            <div className="w-full bg-muted/30 rounded-full h-1 overflow-hidden">
+                                <div
+                                    className={`h-full rounded-full transition-all duration-500 ${weeklySupportLimit !== 'Unlimited' && supportRequestCount >= weeklySupportLimit ? "bg-red-500" : "bg-primary"}`}
+                                    style={{ width: `${weeklySupportLimit === 'Unlimited' ? 100 : Math.min(100, (supportRequestCount / weeklySupportLimit) * 100)}%` }}
+                                ></div>
+                            </div>
                         </div>
                     </div>
 
@@ -285,12 +308,12 @@ const UserDashboardPopup: React.FC<UserDashboardPopupProps> = ({
                             <button
                                 key={id}
                                 onClick={() => handleTabChange(id)}
-                                className={`w-full flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium transition-all ${activeTab === id
-                                        ? 'bg-primary/10 text-primary border border-primary/20'
-                                        : 'text-muted-foreground hover:bg-muted/20 hover:text-foreground'
+                                className={`w-full flex items-center gap-3 px-3 py-2 rounded-lg text-xs font-medium transition-all ${activeTab === id
+                                    ? 'bg-primary/10 text-primary border border-primary/20'
+                                    : 'text-muted-foreground hover:bg-muted/20 hover:text-foreground'
                                     }`}
                             >
-                                <Icon className="h-5 w-5" />
+                                <Icon className="h-4 w-4" />
                                 <span>{label}</span>
                             </button>
                         ))}
@@ -299,36 +322,36 @@ const UserDashboardPopup: React.FC<UserDashboardPopupProps> = ({
                     {/* Sign Out Button */}
                     <button
                         onClick={onLogout}
-                        className="w-full flex items-center justify-center gap-2 p-3 rounded-xl bg-red-500/10 hover:bg-red-500/20 text-red-500 border border-red-500/20 transition-all text-sm font-bold mt-4"
+                        className="w-full flex items-center justify-center gap-2 p-2.5 rounded-xl bg-red-500/10 hover:bg-red-500/20 text-red-500 border border-red-500/20 transition-all text-xs font-bold mt-4"
                     >
-                        <LogOutIcon className="h-4 w-4" />
+                        <LogOutIcon className="h-3.5 w-3.5" />
                         Sign Out
                     </button>
                 </div>
 
                 {/* Right Content Area */}
-                <div className="flex-1 flex flex-col">
+                <div className="flex-1 flex flex-col bg-card/30">
                     {/* Close Button */}
                     <div className="absolute top-4 right-4 z-10">
                         <button
                             onClick={onClose}
-                            className="p-2 hover:bg-muted rounded-full transition-colors"
+                            className="p-1.5 hover:bg-muted/50 rounded-full transition-colors"
                         >
-                            <XIcon className="h-5 w-5 text-muted-foreground" />
+                            <XIcon className="h-4 w-4 text-muted-foreground" />
                         </button>
                     </div>
 
                     {/* Content */}
                     <div ref={contentRef} className="p-6 overflow-y-auto flex-1">
                         {activeTab === 'overview' && (
-                            <div className="space-y-6 max-w-2xl">
-                                <h3 className="text-2xl font-bold text-foreground mb-4">Account Overview</h3>
+                            <div className="space-y-5 max-w-2xl">
+                                <h3 className="text-xl font-bold text-foreground mb-4">Account Overview</h3>
 
                                 {/* Plan Section */}
-                                <div className="bg-gradient-to-br from-primary/5 to-primary/10 rounded-xl p-5 border border-primary/20">
-                                    <div className="flex items-center justify-between mb-4">
-                                        <h4 className="text-lg font-semibold text-foreground flex items-center gap-2">
-                                            <CreditCardIcon className="h-5 w-5 text-primary" />
+                                <div className="bg-card/50 rounded-xl p-4 border border-border/20 shadow-sm">
+                                    <div className="flex items-center justify-between mb-3">
+                                        <h4 className="text-sm font-semibold text-foreground flex items-center gap-2">
+                                            <CreditCardIcon className="h-4 w-4 text-primary" />
                                             Subscription Plan
                                         </h4>
                                     </div>
@@ -336,7 +359,7 @@ const UserDashboardPopup: React.FC<UserDashboardPopupProps> = ({
                                         <Button
                                             variant="outline"
                                             size="sm"
-                                            className="flex-1"
+                                            className="flex-1 h-8 text-xs"
                                             onClick={() => {
                                                 onClose();
                                                 onNavigateToPricing();
@@ -348,7 +371,7 @@ const UserDashboardPopup: React.FC<UserDashboardPopupProps> = ({
                                             <Button
                                                 variant="ghost"
                                                 size="sm"
-                                                className="flex-1 text-red-400 hover:text-red-500 hover:bg-red-500/10"
+                                                className="flex-1 h-8 text-xs text-red-400 hover:text-red-500 hover:bg-red-500/10"
                                                 onClick={() => setShowCancelConfirm(true)}
                                             >
                                                 Cancel Plan
@@ -359,200 +382,200 @@ const UserDashboardPopup: React.FC<UserDashboardPopupProps> = ({
 
                                 {/* Running Agents */}
                                 <div>
-                                    <h4 className="text-lg font-semibold text-foreground mb-3 flex items-center gap-2">
-                                        <ServerStackIcon className="h-5 w-5 text-blue-400" />
+                                    <h4 className="text-sm font-semibold text-foreground mb-3 flex items-center gap-2">
+                                        <ServerStackIcon className="h-4 w-4 text-blue-400" />
                                         Active Agents
                                     </h4>
                                     {runningAgents.length > 0 ? (
                                         <div className="space-y-2">
                                             {runningAgents.map(agent => (
-                                                <div key={agent.id} className="flex items-center justify-between p-4 bg-muted/10 rounded-lg border border-border/20">
-                                                    <span className="text-sm font-medium">{agent.name}</span>
+                                                <div key={agent.id} className="flex items-center justify-between p-3 bg-card/50 rounded-lg border border-border/20">
+                                                    <span className="text-xs font-medium">{agent.name}</span>
                                                     <div className="flex items-center gap-2">
-                                                        <span className="relative flex h-2 w-2">
+                                                        <span className="relative flex h-1.5 w-1.5">
                                                             <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-green-400 opacity-75"></span>
-                                                            <span className="relative inline-flex rounded-full h-2 w-2 bg-green-500"></span>
+                                                            <span className="relative inline-flex rounded-full h-1.5 w-1.5 bg-green-500"></span>
                                                         </span>
-                                                        <span className="text-xs text-green-400 font-medium">Running</span>
+                                                        <span className="text-[10px] text-green-400 font-medium">Running</span>
                                                     </div>
                                                 </div>
                                             ))}
                                         </div>
                                     ) : (
-                                        <div className="text-center p-6 bg-muted/5 rounded-lg border border-border/10 text-sm text-muted-foreground">
+                                        <div className="text-center p-4 bg-muted/5 rounded-lg border border-border/10 text-xs text-muted-foreground">
                                             No agents currently running
                                         </div>
                                     )}
                                 </div>
 
                                 {/* Support Cards */}
-                                <div className="grid grid-cols-2 gap-4">
+                                <div className="grid grid-cols-2 gap-3">
                                     <button
                                         onClick={() => {
                                             onClose();
                                             onNavigateToSupport();
                                         }}
-                                        className="p-4 rounded-xl bg-muted/10 hover:bg-muted/20 border border-border/20 transition-all text-left group"
+                                        className="p-3 rounded-xl bg-card/50 hover:bg-card/80 border border-border/20 transition-all text-left group"
                                     >
-                                        <QuestionMarkCircleIcon className="h-6 w-6 text-purple-400 mb-3 group-hover:scale-110 transition-transform" />
-                                        <div className="text-sm font-semibold mb-1">Support Center</div>
-                                        <div className="text-xs text-muted-foreground">Get help fast</div>
+                                        <QuestionMarkCircleIcon className="h-5 w-5 text-purple-400 mb-2 group-hover:scale-110 transition-transform" />
+                                        <div className="text-xs font-semibold mb-0.5">Support Center</div>
+                                        <div className="text-[10px] text-muted-foreground">Get help fast</div>
                                     </button>
-                                    <button className="p-4 rounded-xl bg-muted/10 hover:bg-muted/20 border border-border/20 transition-all text-left group">
-                                        <EnvelopeIcon className="h-6 w-6 text-orange-400 mb-3 group-hover:scale-110 transition-transform" />
-                                        <div className="text-sm font-semibold mb-1">Contact Us</div>
-                                        <div className="text-xs text-muted-foreground">Email support</div>
+                                    <button className="p-3 rounded-xl bg-card/50 hover:bg-card/80 border border-border/20 transition-all text-left group">
+                                        <EnvelopeIcon className="h-5 w-5 text-orange-400 mb-2 group-hover:scale-110 transition-transform" />
+                                        <div className="text-xs font-semibold mb-0.5">Contact Us</div>
+                                        <div className="text-[10px] text-muted-foreground">Email support</div>
                                     </button>
                                 </div>
                             </div>
                         )}
 
                         {activeTab === 'settings' && (
-                            <div className="space-y-6 max-w-2xl">
-                                <h3 className="text-2xl font-bold text-foreground mb-4">Notification Settings</h3>
+                            <div className="space-y-5 max-w-2xl">
+                                <h3 className="text-xl font-bold text-foreground mb-4">Notification Settings</h3>
 
                                 {preferencesMessage && (
-                                    <div className={`p-3 rounded-lg text-sm ${preferencesMessage.type === 'success'
-                                            ? 'bg-green-500/10 text-green-500 border border-green-500/20'
-                                            : 'bg-red-500/10 text-red-500 border border-red-500/20'
+                                    <div className={`p-2.5 rounded-lg text-xs ${preferencesMessage.type === 'success'
+                                        ? 'bg-green-500/10 text-green-500 border border-green-500/20'
+                                        : 'bg-red-500/10 text-red-500 border border-red-500/20'
                                         }`}>
                                         {preferencesMessage.text}
                                     </div>
                                 )}
 
-                                <div className="space-y-4">
-                                    <div className="flex items-center justify-between p-4 bg-muted/10 rounded-lg border border-border/20">
+                                <div className="space-y-3">
+                                    <div className="flex items-center justify-between p-3 bg-card/50 rounded-lg border border-border/20">
                                         <div>
-                                            <div className="text-sm font-medium mb-1">Email Notifications</div>
-                                            <div className="text-xs text-muted-foreground">Receive updates via email</div>
+                                            <div className="text-xs font-medium mb-0.5">Email Notifications</div>
+                                            <div className="text-[10px] text-muted-foreground">Receive updates via email</div>
                                         </div>
                                         <button
                                             onClick={() => setPreferences(prev => ({ ...prev, emailNotifications: !prev.emailNotifications }))}
-                                            className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors ${preferences.emailNotifications ? 'bg-primary' : 'bg-muted'
+                                            className={`relative inline-flex h-5 w-9 items-center rounded-full transition-colors ${preferences.emailNotifications ? 'bg-primary' : 'bg-muted'
                                                 }`}
                                         >
-                                            <span className={`inline-block h-4 w-4 transform rounded-full bg-white transition-transform ${preferences.emailNotifications ? 'translate-x-6' : 'translate-x-1'
+                                            <span className={`inline-block h-3.5 w-3.5 transform rounded-full bg-white transition-transform ${preferences.emailNotifications ? 'translate-x-4' : 'translate-x-1'
                                                 }`} />
                                         </button>
                                     </div>
 
-                                    <div className="flex items-center justify-between p-4 bg-muted/10 rounded-lg border border-border/20">
+                                    <div className="flex items-center justify-between p-3 bg-card/50 rounded-lg border border-border/20">
                                         <div>
-                                            <div className="text-sm font-medium mb-1">Agent Status Notifications</div>
-                                            <div className="text-xs text-muted-foreground">Get notified when agents change status</div>
+                                            <div className="text-xs font-medium mb-0.5">Agent Status Notifications</div>
+                                            <div className="text-[10px] text-muted-foreground">Get notified when agents change status</div>
                                         </div>
                                         <button
                                             onClick={() => setPreferences(prev => ({ ...prev, agentStatusNotifications: !prev.agentStatusNotifications }))}
-                                            className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors ${preferences.agentStatusNotifications ? 'bg-primary' : 'bg-muted'
+                                            className={`relative inline-flex h-5 w-9 items-center rounded-full transition-colors ${preferences.agentStatusNotifications ? 'bg-primary' : 'bg-muted'
                                                 }`}
                                         >
-                                            <span className={`inline-block h-4 w-4 transform rounded-full bg-white transition-transform ${preferences.agentStatusNotifications ? 'translate-x-6' : 'translate-x-1'
+                                            <span className={`inline-block h-3.5 w-3.5 transform rounded-full bg-white transition-transform ${preferences.agentStatusNotifications ? 'translate-x-4' : 'translate-x-1'
                                                 }`} />
                                         </button>
                                     </div>
 
-                                    <div className="flex items-center justify-between p-4 bg-muted/10 rounded-lg border border-border/20">
+                                    <div className="flex items-center justify-between p-3 bg-card/50 rounded-lg border border-border/20">
                                         <div>
-                                            <div className="text-sm font-medium mb-1">Weekly Reports</div>
-                                            <div className="text-xs text-muted-foreground">Receive weekly activity summaries</div>
+                                            <div className="text-xs font-medium mb-0.5">Weekly Reports</div>
+                                            <div className="text-[10px] text-muted-foreground">Receive weekly activity summaries</div>
                                         </div>
                                         <button
                                             onClick={() => setPreferences(prev => ({ ...prev, weeklyReports: !prev.weeklyReports }))}
-                                            className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors ${preferences.weeklyReports ? 'bg-primary' : 'bg-muted'
+                                            className={`relative inline-flex h-5 w-9 items-center rounded-full transition-colors ${preferences.weeklyReports ? 'bg-primary' : 'bg-muted'
                                                 }`}
                                         >
-                                            <span className={`inline-block h-4 w-4 transform rounded-full bg-white transition-transform ${preferences.weeklyReports ? 'translate-x-6' : 'translate-x-1'
+                                            <span className={`inline-block h-3.5 w-3.5 transform rounded-full bg-white transition-transform ${preferences.weeklyReports ? 'translate-x-4' : 'translate-x-1'
                                                 }`} />
                                         </button>
                                     </div>
                                 </div>
 
-                                <Button onClick={handleSavePreferences} className="w-full">
+                                <Button onClick={handleSavePreferences} className="w-full h-9 text-xs">
                                     Save Preferences
                                 </Button>
                             </div>
                         )}
 
                         {activeTab === 'security' && (
-                            <div className="space-y-6 max-w-2xl">
-                                <h3 className="text-2xl font-bold text-foreground mb-4">Security Settings</h3>
+                            <div className="space-y-5 max-w-2xl">
+                                <h3 className="text-xl font-bold text-foreground mb-4">Security Settings</h3>
 
                                 {passwordMessage && (
-                                    <div className={`p-3 rounded-lg text-sm ${passwordMessage.type === 'success'
-                                            ? 'bg-green-500/10 text-green-500 border border-green-500/20'
-                                            : 'bg-red-500/10 text-red-500 border border-red-500/20'
+                                    <div className={`p-2.5 rounded-lg text-xs ${passwordMessage.type === 'success'
+                                        ? 'bg-green-500/10 text-green-500 border border-green-500/20'
+                                        : 'bg-red-500/10 text-red-500 border border-red-500/20'
                                         }`}>
                                         {passwordMessage.text}
                                     </div>
                                 )}
 
-                                <div className="space-y-4">
+                                <div className="space-y-3">
                                     <div>
-                                        <label className="block text-sm font-medium mb-2">Current Password</label>
+                                        <label className="block text-xs font-medium mb-1.5">Current Password</label>
                                         <input
                                             type="password"
                                             value={currentPassword}
                                             onChange={(e) => setCurrentPassword(e.target.value)}
-                                            className="w-full px-4 py-2 bg-muted/20 border border-border/30 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary"
+                                            className="w-full px-3 py-1.5 bg-muted/20 border border-border/30 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary text-xs"
                                             placeholder="Enter current password"
                                         />
                                     </div>
 
                                     <div>
-                                        <label className="block text-sm font-medium mb-2">New Password</label>
+                                        <label className="block text-xs font-medium mb-1.5">New Password</label>
                                         <input
                                             type="password"
                                             value={newPassword}
                                             onChange={(e) => setNewPassword(e.target.value)}
-                                            className="w-full px-4 py-2 bg-muted/20 border border-border/30 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary"
+                                            className="w-full px-3 py-1.5 bg-muted/20 border border-border/30 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary text-xs"
                                             placeholder="Enter new password"
                                         />
                                     </div>
 
                                     <div>
-                                        <label className="block text-sm font-medium mb-2">Confirm New Password</label>
+                                        <label className="block text-xs font-medium mb-1.5">Confirm New Password</label>
                                         <input
                                             type="password"
                                             value={confirmPassword}
                                             onChange={(e) => setConfirmPassword(e.target.value)}
-                                            className="w-full px-4 py-2 bg-muted/20 border border-border/30 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary"
+                                            className="w-full px-3 py-1.5 bg-muted/20 border border-border/30 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary text-xs"
                                             placeholder="Confirm new password"
                                         />
                                     </div>
                                 </div>
 
-                                <Button onClick={handleChangePassword} className="w-full">
+                                <Button onClick={handleChangePassword} className="w-full h-9 text-xs">
                                     Change Password
                                 </Button>
                             </div>
                         )}
 
                         {activeTab === 'system' && (
-                            <div className="space-y-6 max-w-2xl">
-                                <h3 className="text-2xl font-bold text-foreground mb-4">System Status</h3>
+                            <div className="space-y-5 max-w-2xl">
+                                <h3 className="text-xl font-bold text-foreground mb-4">System Status</h3>
 
-                                <div className="bg-gradient-to-br from-blue-500/5 to-purple-500/5 rounded-xl p-6 border border-border/20">
+                                <div className="bg-card/50 rounded-xl p-5 border border-border/20">
                                     <div className="flex items-center gap-3 mb-4">
-                                        <div className="h-12 w-12 rounded-full bg-primary/10 flex items-center justify-center">
-                                            <ClockIcon className="h-6 w-6 text-primary" />
+                                        <div className="h-10 w-10 rounded-full bg-primary/10 flex items-center justify-center">
+                                            <ClockIcon className="h-5 w-5 text-primary" />
                                         </div>
                                         <div>
-                                            <h4 className="text-lg font-semibold">Backend Uptime</h4>
-                                            <p className="text-xs text-muted-foreground">Server has been running continuously</p>
+                                            <h4 className="text-sm font-semibold">Backend Uptime</h4>
+                                            <p className="text-[10px] text-muted-foreground">Server has been running continuously</p>
                                         </div>
                                     </div>
 
                                     {uptime ? (
-                                        <div className="bg-muted/20 rounded-lg p-4 border border-border/20">
-                                            <div className="text-3xl font-bold text-primary mb-2">
+                                        <div className="bg-muted/20 rounded-lg p-3 border border-border/20">
+                                            <div className="text-2xl font-bold text-primary mb-1">
                                                 {uptime.uptimeFormatted}
                                             </div>
-                                            <div className="text-xs text-muted-foreground">
+                                            <div className="text-[10px] text-muted-foreground">
                                                 Total uptime: {uptime.uptime} seconds
                                             </div>
                                         </div>
                                     ) : (
-                                        <div className="bg-muted/20 rounded-lg p-4 border border-border/20 text-center text-sm text-muted-foreground">
+                                        <div className="bg-muted/20 rounded-lg p-3 border border-border/20 text-center text-xs text-muted-foreground">
                                             Loading uptime data...
                                         </div>
                                     )}
@@ -561,26 +584,26 @@ const UserDashboardPopup: React.FC<UserDashboardPopupProps> = ({
                         )}
 
                         {activeTab === 'support' && (
-                            <div className="space-y-6 max-w-2xl">
-                                <h3 className="text-2xl font-bold text-foreground mb-4">Support & Help</h3>
+                            <div className="space-y-5 max-w-2xl">
+                                <h3 className="text-xl font-bold text-foreground mb-4">Support & Help</h3>
 
-                                <div className="grid gap-4">
+                                <div className="grid gap-3">
                                     <button
                                         onClick={() => {
                                             onClose();
                                             onNavigateToSupport();
                                         }}
-                                        className="p-6 rounded-xl bg-gradient-to-br from-purple-500/10 to-purple-500/5 hover:from-purple-500/15 hover:to-purple-500/10 border border-purple-500/20 transition-all text-left group"
+                                        className="p-4 rounded-xl bg-card/50 hover:bg-card/80 border border-border/20 transition-all text-left group"
                                     >
-                                        <QuestionMarkCircleIcon className="h-8 w-8 text-purple-400 mb-4 group-hover:scale-110 transition-transform" />
-                                        <div className="text-lg font-semibold mb-2">Support Center</div>
-                                        <div className="text-sm text-muted-foreground">Access our comprehensive help documentation and submit support tickets</div>
+                                        <QuestionMarkCircleIcon className="h-6 w-6 text-purple-400 mb-2 group-hover:scale-110 transition-transform" />
+                                        <div className="text-sm font-semibold mb-1">Support Center</div>
+                                        <div className="text-xs text-muted-foreground">Access our comprehensive help documentation and submit support tickets</div>
                                     </button>
 
-                                    <button className="p-6 rounded-xl bg-gradient-to-br from-orange-500/10 to-orange-500/5 hover:from-orange-500/15 hover:to-orange-500/10 border border-orange-500/20 transition-all text-left group">
-                                        <EnvelopeIcon className="h-8 w-8 text-orange-400 mb-4 group-hover:scale-110 transition-transform" />
-                                        <div className="text-lg font-semibold mb-2">Email Support</div>
-                                        <div className="text-sm text-muted-foreground">Contact our team directly via email for personalized assistance</div>
+                                    <button className="p-4 rounded-xl bg-card/50 hover:bg-card/80 border border-border/20 transition-all text-left group">
+                                        <EnvelopeIcon className="h-6 w-6 text-orange-400 mb-2 group-hover:scale-110 transition-transform" />
+                                        <div className="text-sm font-semibold mb-1">Email Support</div>
+                                        <div className="text-xs text-muted-foreground">Contact our team directly via email for personalized assistance</div>
                                     </button>
                                 </div>
                             </div>
@@ -597,21 +620,21 @@ const UserDashboardPopup: React.FC<UserDashboardPopupProps> = ({
                         onClick={() => setShowCancelConfirm(false)}
                     />
                     <div className="relative bg-card border border-border/50 rounded-2xl p-6 max-w-md w-full shadow-2xl">
-                        <h3 className="text-xl font-bold mb-4">Cancel Subscription?</h3>
-                        <p className="text-sm text-muted-foreground mb-6">
+                        <h3 className="text-lg font-bold mb-3">Cancel Subscription?</h3>
+                        <p className="text-xs text-muted-foreground mb-5">
                             Are you sure you want to cancel your {userPlan} plan? You will be downgraded to the free tier and lose access to premium features.
                         </p>
                         <div className="flex gap-3">
                             <Button
                                 variant="outline"
-                                className="flex-1"
+                                className="flex-1 h-9 text-xs"
                                 onClick={() => setShowCancelConfirm(false)}
                             >
                                 Keep Plan
                             </Button>
                             <Button
                                 variant="ghost"
-                                className="flex-1 bg-red-500/10 text-red-500 hover:bg-red-500/20 border border-red-500/20"
+                                className="flex-1 h-9 text-xs bg-red-500/10 text-red-500 hover:bg-red-500/20 border border-red-500/20"
                                 onClick={handleCancelPlan}
                             >
                                 Cancel Plan

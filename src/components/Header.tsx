@@ -282,69 +282,69 @@ const Header: React.FC<HeaderProps> = ({
                 <div className="container mx-auto px-4 md:px-8 py-3 md:py-4 flex items-center justify-between">
                     {/* Logo Section */}
                     <button onClick={onNavigateToDashboard} className="flex items-center gap-3 group z-10">
-                        <div className="bg-primary/10 border border-primary/30 h-10 w-10 md:h-12 md:w-12 rounded-xl flex items-center justify-center flex-shrink-0 group-hover:scale-105 transition-transform shadow-lg shadow-primary/10">
-                            <N8nLogo className="h-6 w-6 md:h-7 md:w-7 text-primary" />
+                        <div className="bg-primary/10 border border-primary/30 h-9 w-9 md:h-10 md:w-10 rounded-xl flex items-center justify-center flex-shrink-0 group-hover:scale-105 transition-transform shadow-lg shadow-primary/10">
+                            <N8nLogo className="h-5 w-5 md:h-6 md:w-6 text-primary" />
                         </div>
-                        <h1 className="text-xl md:text-2xl font-bold text-foreground tracking-wide group-hover:text-primary transition-colors">
+                        <h1 className="text-lg md:text-xl font-bold text-foreground tracking-wide group-hover:text-primary transition-colors">
                             <span className="md:hidden">N8N Dashboard</span>
                             <span className="hidden md:inline">N8N Agent Dashboard</span>
                         </h1>
                     </button>
 
                     {/* Desktop Navigation & Stats (Visible on LG+) */}
-                    <div className="hidden lg:flex items-center gap-6">
-                        <nav className="flex items-center gap-2 text-base font-medium bg-muted/10 p-1.5 rounded-xl border border-border/20">
+                    <div className="hidden lg:flex items-center gap-4">
+                        <nav className="flex items-center gap-1 text-sm font-medium bg-muted/10 p-1 rounded-xl border border-border/20">
                             <button
                                 onClick={onNavigateToSubscription}
-                                className="text-muted-foreground hover:text-foreground hover:bg-card px-4 py-2 rounded-lg transition-all flex items-center gap-2"
+                                className="text-muted-foreground hover:text-foreground hover:bg-card px-3 py-1.5 rounded-lg transition-all duration-300 flex items-center gap-2 hover:scale-105"
                             >
                                 My Plan
                             </button>
                             <button
                                 onClick={onNavigateToPricing}
-                                className="text-muted-foreground hover:text-foreground hover:bg-card px-4 py-2 rounded-lg transition-all flex items-center gap-2"
+                                className="text-muted-foreground hover:text-foreground hover:bg-card px-3 py-1.5 rounded-lg transition-all duration-300 flex items-center gap-2 hover:scale-105"
                             >
                                 Pricing
                             </button>
-                            <div className="w-px h-5 bg-border/40 mx-1"></div>
+                            <div className="w-px h-4 bg-border/40 mx-1"></div>
                             <button
                                 onClick={onNavigateToHowToUse}
-                                className="text-muted-foreground hover:text-foreground hover:bg-card px-4 py-2 rounded-lg transition-all"
+                                className="text-muted-foreground hover:text-foreground hover:bg-card px-3 py-1.5 rounded-lg transition-all duration-300 hover:scale-105"
                             >
                                 How to use
                             </button>
                             <button
                                 onClick={onNavigateToSupport}
-                                className="text-muted-foreground hover:text-foreground hover:bg-card px-4 py-2 rounded-lg transition-all"
+                                className="text-muted-foreground hover:text-foreground hover:bg-card px-3 py-1.5 rounded-lg transition-all duration-300 hover:scale-105"
                             >
                                 Support
                             </button>
                         </nav>
 
-                        <div className="flex items-center gap-4 bg-card/50 px-5 py-2 rounded-full border border-border/30 shadow-sm">
-                            <div className="text-base text-muted-foreground whitespace-nowrap flex items-center gap-2">
-                                <ShieldCheckIcon className="h-5 w-5 text-primary/70" />
+                        <div className="flex items-center gap-3 bg-card/50 px-3 py-1.5 rounded-full border border-border/30 shadow-sm">
+                            <div className="text-xs text-muted-foreground whitespace-nowrap flex items-center gap-2">
+                                <ShieldCheckIcon className="h-4 w-4 text-primary/70" />
                                 <span>Support: <strong className="text-foreground">
                                     {supportRequestCount}/{weeklySupportLimit === 'Unlimited' ? '∞' : weeklySupportLimit}
                                 </strong></span>
                             </div>
                             {nextSupportTicketExpiresAt && (
                                 <>
-                                    <div className="h-5 w-px bg-border/40"></div>
+                                    <div className="h-4 w-px bg-border/40"></div>
                                     <SupportTimer expiresAt={nextSupportTicketExpiresAt} />
                                 </>
                             )}
                         </div>
 
-                        <div className="flex items-center gap-4 pl-4 border-l border-border/20">
+                        <div className="flex items-center gap-3 pl-3 border-l border-border/20">
                             <ThemeToggle />
 
                             <button
                                 onClick={onOpenUserDashboard}
-                                className="h-10 w-10 rounded-full bg-primary/10 hover:bg-primary/20 border border-primary/20 flex items-center justify-center text-primary transition-all hover:scale-105 active:scale-95"
+                                className="h-9 w-9 rounded-full bg-primary/10 hover:bg-primary/20 border border-primary/20 flex items-center justify-center text-primary transition-all hover:scale-105 active:scale-95"
                                 title="User Dashboard"
                             >
-                                <UserIcon className="h-5 w-5" />
+                                <UserIcon className="h-4 w-4" />
                             </button>
                         </div>
                     </div>
