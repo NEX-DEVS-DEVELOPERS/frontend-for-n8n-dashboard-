@@ -335,7 +335,7 @@ const Chatbot: React.FC<ChatbotProps> = ({ agentData, logs, onClose, isCentered,
                 </div>
             </header>
 
-            <CardContent ref={scrollContainerRef} className="flex-grow p-6 pt-8 overflow-y-auto space-y-6 min-h-0 will-change-scroll backface-hidden bg-background/50">
+            <CardContent ref={scrollContainerRef} className="flex-grow p-6 pt-8 overflow-y-auto space-y-6 min-h-0 bg-background/50">
                 {messages.map((msg, index) => (
                     <div key={index} className={`flex gap-4 ${msg.author === MessageAuthor.User ? 'justify-end' : ''}`}>
                         {msg.author === MessageAuthor.Assistant && (
@@ -344,8 +344,8 @@ const Chatbot: React.FC<ChatbotProps> = ({ agentData, logs, onClose, isCentered,
                             </div>
                         )}
                         <div className={`max-w-[85%] p-4 rounded-2xl text-[16px] shadow-sm transition-all duration-300 ${msg.author === MessageAuthor.User
-                                ? 'bg-primary text-primary-foreground rounded-tr-sm shadow-lg shadow-primary/10'
-                                : 'bg-card border border-border/30 rounded-tl-sm'
+                            ? 'bg-primary text-primary-foreground rounded-tr-sm shadow-lg shadow-primary/10'
+                            : 'bg-card border border-border/30 rounded-tl-sm'
                             }`}>
                             {msg.author === MessageAuthor.Assistant && !msg.text && isLoading ? (
                                 <div className="flex items-center space-x-1.5 h-5 px-1">
