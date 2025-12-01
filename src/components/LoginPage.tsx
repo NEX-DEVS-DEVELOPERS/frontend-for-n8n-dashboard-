@@ -237,7 +237,7 @@ const LoginPage: React.FC<LoginPageProps> = ({ onLoginSuccess }) => {
   };
 
   return (
-    <div className="min-h-screen flex items-center justify-center bg-transparent p-4 relative overflow-hidden">
+    <div className="h-screen flex items-center justify-center bg-transparent p-4 relative overflow-hidden">
       {/* Enhanced Particle Background Layer */}
       <ParticleBackground />
 

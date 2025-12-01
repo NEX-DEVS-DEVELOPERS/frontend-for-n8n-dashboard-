@@ -278,7 +278,7 @@ const Header: React.FC<HeaderProps> = ({
                 />
             )}
 
-            <header className="bg-card/90 backdrop-blur-xl border-b border-border/30 sticky top-0 z-50 transition-all duration-300 shadow-sm">
+            <header className="bg-card/90 backdrop-blur-xl border-b border-border/30 fixed top-0 left-0 right-0 z-50 transition-all duration-300 shadow-sm">
                 <div className="container mx-auto px-4 md:px-8 py-3 md:py-4 flex items-center justify-between">
                     {/* Logo Section */}
                     <button onClick={onNavigateToDashboard} className="flex items-center gap-3 group z-10">
@@ -292,30 +292,30 @@ const Header: React.FC<HeaderProps> = ({
                     </button>
 
                     {/* Desktop Navigation & Stats (Visible on LG+) */}
-                    <div className="hidden lg:flex items-center gap-4">
-                        <nav className="flex items-center gap-1 text-sm font-medium bg-muted/10 p-1 rounded-xl border border-border/20">
+                    <div className="hidden lg:flex items-center gap-6">
+                        <nav className="flex items-center gap-1 text-sm font-medium bg-black text-white p-1.5 rounded-full border border-cyan-500/30 shadow-[0_0_15px_rgba(6,182,212,0.15)]">
                             <button
                                 onClick={onNavigateToSubscription}
-                                className="text-muted-foreground hover:text-foreground hover:bg-card px-3 py-1.5 rounded-lg transition-all duration-300 flex items-center gap-2 hover:scale-105"
+                                className="text-white/70 hover:text-white hover:bg-white/10 px-3 py-1.5 rounded-full transition-all duration-300 flex items-center gap-2 hover:scale-105"
                             >
                                 My Plan
                             </button>
                             <button
                                 onClick={onNavigateToPricing}
-                                className="text-muted-foreground hover:text-foreground hover:bg-card px-3 py-1.5 rounded-lg transition-all duration-300 flex items-center gap-2 hover:scale-105"
+                                className="text-white/70 hover:text-white hover:bg-white/10 px-3 py-1.5 rounded-full transition-all duration-300 flex items-center gap-2 hover:scale-105"
                             >
                                 Pricing
                             </button>
-                            <div className="w-px h-4 bg-border/40 mx-1"></div>
+                            <div className="h-4 w-px bg-white/20 mx-1"></div>
                             <button
                                 onClick={onNavigateToHowToUse}
-                                className="text-muted-foreground hover:text-foreground hover:bg-card px-3 py-1.5 rounded-lg transition-all duration-300 hover:scale-105"
+                                className="text-white/70 hover:text-white hover:bg-white/10 px-3 py-1.5 rounded-full transition-all duration-300 flex items-center gap-2 hover:scale-105"
                             >
                                 How to use
                             </button>
                             <button
                                 onClick={onNavigateToSupport}
-                                className="text-muted-foreground hover:text-foreground hover:bg-card px-3 py-1.5 rounded-lg transition-all duration-300 hover:scale-105"
+                                className="text-white/70 hover:text-white hover:bg-white/10 px-3 py-1.5 rounded-full transition-all duration-300 flex items-center gap-2 hover:scale-105"
                             >
                                 Support
                             </button>

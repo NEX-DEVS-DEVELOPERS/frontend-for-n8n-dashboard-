@@ -12,7 +12,7 @@ interface ChatbotWidgetProps {
 }
 
 export interface ChatbotWidgetRef {
-  open: () => void;
+    open: () => void;
 }
 
 const ChatbotWidget = forwardRef<ChatbotWidgetRef, ChatbotWidgetProps>(({ agentData, logs, userPlan }, ref) => {
@@ -22,7 +22,7 @@ const ChatbotWidget = forwardRef<ChatbotWidgetRef, ChatbotWidgetProps>(({ agentD
 
     const chatbotContainerRef = useRef<HTMLDivElement>(null);
     const backdropRef = useRef<HTMLDivElement>(null);
-    
+
     useImperativeHandle(ref, () => ({
         open: () => {
             setIsOpen(true);
@@ -37,7 +37,7 @@ const ChatbotWidget = forwardRef<ChatbotWidgetRef, ChatbotWidgetProps>(({ agentD
                 setIsCentered(true);
             }
         };
-        window.addEventListener('resize', handleResize);
+        window.addEventListener('resize', handleResize, { passive: true });
         return () => window.removeEventListener('resize', handleResize);
     }, []);
 
@@ -73,9 +73,9 @@ const ChatbotWidget = forwardRef<ChatbotWidgetRef, ChatbotWidgetProps>(({ agentD
         const el = chatbotContainerRef.current;
         const backdrop = backdropRef.current;
         if (!el || !backdrop) return;
-        
+
         gsap.killTweensOf([el, backdrop]);
-        
+
         const timeline = gsap.timeline();
         const ySlideOffset = '5rem';
 
@@ -88,12 +88,12 @@ const ChatbotWidget = forwardRef<ChatbotWidgetRef, ChatbotWidgetProps>(({ agentD
             yPercent: -100,
             width: '100%',
             maxWidth: '32rem',
-            height: '70vh', 
+            height: '70vh',
             maxHeight: '70vh',
         };
 
         const centeredProps = {
-            top: '55%', 
+            top: '55%',
             left: '50%',
             x: '0rem',
             y: '0rem',
@@ -107,22 +107,22 @@ const ChatbotWidget = forwardRef<ChatbotWidgetRef, ChatbotWidgetProps>(({ agentD
 
         if (isOpen) {
             const targetProps = isCentered ? centeredProps : dockedProps;
-            
-            timeline.to(backdrop, { 
-                autoAlpha: isCentered ? 1 : 0, 
-                duration: 0.6, 
-                ease: 'expo.inOut' 
-            })
-            .to(el, {
-                ...targetProps,
-                transformOrigin: isCentered ? "center center" : "bottom right",
-                autoAlpha: 1,
-                scale: 1,
+
+            timeline.to(backdrop, {
+                autoAlpha: isCentered ? 1 : 0,
                 duration: 0.6,
-                ease: 'expo.out',
-                force3D: true,
-                onStart: () => gsap.set(el, { pointerEvents: 'auto' })
-            }, "<");
+                ease: 'expo.inOut'
+            })
+                .to(el, {
+                    ...targetProps,
+                    transformOrigin: isCentered ? "center center" : "bottom right",
+                    autoAlpha: 1,
+                    scale: 1,
+                    duration: 0.6,
+                    ease: 'expo.out',
+                    force3D: true,
+                    onStart: () => gsap.set(el, { pointerEvents: 'auto' })
+                }, "<");
 
         } else {
             const closedProps = {
@@ -132,19 +132,19 @@ const ChatbotWidget = forwardRef<ChatbotWidgetRef, ChatbotWidgetProps>(({ agentD
                 scale: 0.95,
             };
 
-            timeline.to(backdrop, { 
-                autoAlpha: 0, 
-                duration: 0.4, 
-                ease: 'expo.in' 
-            })
-            .to(el, {
-                ...closedProps,
-                transformOrigin: "bottom right", 
+            timeline.to(backdrop, {
+                autoAlpha: 0,
                 duration: 0.4,
-                ease: 'expo.in',
-                force3D: true,
-                onComplete: () => gsap.set(el, { pointerEvents: 'none' })
-            }, "<");
+                ease: 'expo.in'
+            })
+                .to(el, {
+                    ...closedProps,
+                    transformOrigin: "bottom right",
+                    duration: 0.4,
+                    ease: 'expo.in',
+                    force3D: true,
+                    onComplete: () => gsap.set(el, { pointerEvents: 'none' })
+                }, "<");
         }
 
     }, [isOpen, isCentered, isMobile]);
@@ -168,12 +168,12 @@ const ChatbotWidget = forwardRef<ChatbotWidgetRef, ChatbotWidgetProps>(({ agentD
             ></div>
 
             <div
-              ref={chatbotContainerRef}
-              className="fixed z-40"
-              aria-hidden={!isOpen}
+                ref={chatbotContainerRef}
+                className="fixed z-40"
+                aria-hidden={!isOpen}
             >
-                 <Chatbot 
-                    agentData={agentData} 
+                <Chatbot
+                    agentData={agentData}
                     logs={logs}
                     onClose={handleClose}
                     isCentered={isCentered}
@@ -201,8 +201,8 @@ const ChatbotWidget = forwardRef<ChatbotWidgetRef, ChatbotWidgetProps>(({ agentD
                         "
                     >
                         <span className="relative flex h-2 w-2">
-                          <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-primary opacity-75"></span>
-                          <span className="relative inline-flex rounded-full h-2 w-2 bg-primary"></span>
+                            <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-primary opacity-75"></span>
+                            <span className="relative inline-flex rounded-full h-2 w-2 bg-primary"></span>
                         </span>
                         Ask Zappy
                     </div>

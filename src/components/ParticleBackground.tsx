@@ -54,7 +54,7 @@ const ParticleBackground: React.FC<ParticleBackgroundProps> = ({ className }) =>
             {Array.from({ length: 18 }).map((_, i) => (
                 <div
                     key={i}
-                    className={`bg-particle absolute rounded-full blur-2xl mix-blend-screen will-change-transform ${['bg-purple-500/20', 'bg-cyan-500/20', 'bg-pink-500/20', 'bg-blue-500/20'][i % 4]}`}
+                    className={`bg-particle absolute rounded-full blur-xl will-change-transform ${['bg-purple-500/20', 'bg-cyan-500/20', 'bg-pink-500/20', 'bg-blue-500/20'][i % 4]}`}
                     style={{
                         width: Math.random() * 150 + 50 + 'px',
                         height: Math.random() * 150 + 50 + 'px',

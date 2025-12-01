@@ -21,7 +21,9 @@ export interface LoginRequest {
 export interface LoginResponse {
     success: true;
     token: string;
+    refreshToken: string;
     expiresAt: string;
+    refreshExpiresAt: string;
     user: {
         id: string;
         username: string;
@@ -31,10 +33,23 @@ export interface LoginResponse {
     };
 }
 
-// Generic fetch wrapper with error handling
+let isRefreshing = false;
+let refreshSubscribers: ((token: string) => void)[] = [];
+
+const onRefreshed = (token: string) => {
+    refreshSubscribers.forEach(callback => callback(token));
+    refreshSubscribers = [];
+};
+
+const addRefreshSubscriber = (callback: (token: string) => void) => {
+    refreshSubscribers.push(callback);
+};
+
+// Generic fetch wrapper with error handling and auto-refresh
 async function apiFetch<T>(
     endpoint: string,
-    options: RequestInit = {}
+    options: RequestInit = {},
+    retry = true
 ): Promise<ApiResponse<T>> {
     try {
         const token = localStorage.getItem('auth_token');
@@ -55,6 +70,38 @@ async function apiFetch<T>(
 
         const data = await response.json();
 
+        // Handle 401 errors with token refresh
+        if (response.status === 401 && retry) {
+            const errorMsg = data.error || data.message || '';
+
+            // Only try to refresh if the error is about token expiration
+            if (errorMsg.includes('expired') || errorMsg.includes('Invalid')) {
+                try {
+                    const newToken = await refreshAccessToken();
+
+                    if (newToken) {
+                        // Retry the original request with the new token
+                        headers['Authorization'] = `Bearer ${newToken}`;
+                        const retryResponse = await fetch(`${API_BASE_URL}${endpoint}`, {
+                            ...options,
+                            headers,
+                        });
+                        const retryData = await retryResponse.json();
+
+                        if (retryResponse.ok) {
+                            return { data: retryData, success: true };
+                        }
+                    }
+                } catch (refreshError) {
+                    console.error('Token refresh failed:', refreshError);
+                    // Clear tokens and redirect to login
+                    localStorage.removeItem('auth_token');
+                    localStorage.removeItem('refresh_token');
+                    window.location.reload();
+                }
+            }
+        }
+
         if (!response.ok) {
             return {
                 error: data.message || data.error || 'API request failed',
@@ -73,6 +120,57 @@ async function apiFetch<T>(
 }
 
 /**
+ * Refresh the access token using the refresh token
+ */
+async function refreshAccessToken(): Promise<string | null> {
+    if (isRefreshing) {
+        // Wait for the existing refresh to complete
+        return new Promise((resolve) => {
+            addRefreshSubscriber((token: string) => {
+                resolve(token);
+            });
+        });
+    }
+
+    isRefreshing = true;
+
+    try {
+        const refreshToken = localStorage.getItem('refresh_token');
+        if (!refreshToken) {
+            throw new Error('No refresh token available');
+        }
+
+        const response = await fetch(`${API_BASE_URL}/auth/refresh`, {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+            },
+            body: JSON.stringify({ refreshToken }),
+        });
+
+        if (!response.ok) {
+            throw new Error('Refresh token invalid or expired');
+        }
+
+        const data = await response.json();
+
+        if (data.success && data.data?.token) {
+            const newToken = data.data.token;
+            localStorage.setItem('auth_token', newToken);
+            onRefreshed(newToken);
+            isRefreshing = false;
+            return newToken;
+        }
+
+        throw new Error('Invalid refresh response');
+    } catch (error) {
+        isRefreshing = false;
+        console.error('Failed to refresh token:', error);
+        return null;
+    }
+}
+
+/**
  * Authentication API
  */
 export const authApi = {
@@ -80,11 +178,12 @@ export const authApi = {
         const response = await apiFetch<LoginResponse>('/auth/login', {
             method: 'POST',
             body: JSON.stringify(credentials),
-        });
+        }, false); // Don't retry login requests
 
-        // Store token if login successful
-        if (response.data?.token) {
+        // Store tokens if login successful
+        if (response.data?.token && response.data?.refreshToken) {
             localStorage.setItem('auth_token', response.data.token);
+            localStorage.setItem('refresh_token', response.data.refreshToken);
         }
 
         return response;
@@ -103,6 +202,7 @@ export const authApi = {
 
     logout() {
         localStorage.removeItem('auth_token');
+        localStorage.removeItem('refresh_token');
     },
 
     isAuthenticated(): boolean {

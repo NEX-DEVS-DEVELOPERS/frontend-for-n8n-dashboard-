@@ -10,8 +10,10 @@ import {
     Cog6ToothIcon,
     QuestionMarkCircleIcon,
     EnvelopeIcon,
-    ClockIcon
+    ClockIcon,
+    CheckCircleIcon
 } from './icons';
+import SuccessAnimation from './SuccessAnimation';
 import { Agent, AgentStatus, PlanTier } from '../types';
 import { Button } from './ui';
 import { settingsApi } from '../services/api';
@@ -26,6 +28,7 @@ interface UserDashboardPopupProps {
     weeklySupportLimit: number | 'Unlimited';
     onNavigateToSupport: () => void;
     onNavigateToPricing: () => void;
+    onPlanUpdate?: (newPlan: PlanTier, has247Addon: boolean) => void; // New callback
 }
 
 type TabType = 'overview' | 'settings' | 'security' | 'system' | 'support';
@@ -45,7 +48,8 @@ const UserDashboardPopup: React.FC<UserDashboardPopupProps> = ({
     supportRequestCount,
     weeklySupportLimit,
     onNavigateToSupport,
-    onNavigateToPricing
+    onNavigateToPricing,
+    onPlanUpdate // Destructure new callback
 }) => {
     const overlayRef = useRef<HTMLDivElement>(null);
     const popupRef = useRef<HTMLDivElement>(null);
@@ -53,6 +57,7 @@ const UserDashboardPopup: React.FC<UserDashboardPopupProps> = ({
     const [activeTab, setActiveTab] = useState<TabType>('overview');
     const [userData, setUserData] = useState<{ name: string; email: string } | null>(null);
     const [showCancelConfirm, setShowCancelConfirm] = useState(false);
+    const [showSuccess, setShowSuccess] = useState<'cancel' | 'preferences' | 'password' | null>(null);
 
     // Settings state
     const [preferences, setPreferences] = useState<UserPreferences>({
@@ -104,10 +109,11 @@ const UserDashboardPopup: React.FC<UserDashboardPopupProps> = ({
     const loadPreferences = async () => {
         const response = await settingsApi.getPreferences();
         if (response.success && response.data) {
+            // response.data is already the preferences object
             setPreferences({
-                emailNotifications: response.data.data.emailNotifications,
-                agentStatusNotifications: response.data.data.agentStatusNotifications,
-                weeklyReports: response.data.data.weeklyReports
+                emailNotifications: response.data.emailNotifications,
+                agentStatusNotifications: response.data.agentStatusNotifications,
+                weeklyReports: response.data.weeklyReports
             });
         }
     };
@@ -115,9 +121,10 @@ const UserDashboardPopup: React.FC<UserDashboardPopupProps> = ({
     const loadUptime = async () => {
         const response = await settingsApi.getUptime();
         if (response.success && response.data) {
+            // response.data is already the uptime object
             setUptime({
-                uptime: response.data.data.uptime,
-                uptimeFormatted: response.data.data.uptimeFormatted
+                uptime: response.data.uptime,
+                uptimeFormatted: response.data.uptimeFormatted
             });
         }
     };
@@ -185,18 +192,57 @@ const UserDashboardPopup: React.FC<UserDashboardPopupProps> = ({
 
     const handleCancelPlan = async () => {
         const response = await settingsApi.cancelPlan();
-        if (response.success) {
+        if (response.success && response.data) {
             setShowCancelConfirm(false);
-            // Refresh page to update plan
-            window.location.reload();
+
+            // Get the complete updated user data from the backend response
+            const updatedUser = response.data;
+
+            // Update localStorage with COMPLETE user data from backend
+            localStorage.setItem('user_data', JSON.stringify(updatedUser));
+            localStorage.setItem('user_plan', updatedUser.planTier);
+            localStorage.setItem('has_247_addon', JSON.stringify(updatedUser.has247Addon || false));
+
+            // Update local state with preserved user data
+            setUserData({
+                name: updatedUser.username || userData?.name || 'User',
+                email: updatedUser.email || userData?.email || 'user@example.com'
+            });
+
+            // Notify parent component to update its state
+            if (onPlanUpdate) {
+                onPlanUpdate('free', false);
+            }
+
+            // Immediately re-validate with backend to ensure real-time sync
+            // This fetches the absolute latest user data including any updates
+            try {
+                const { authApi } = await import('../services/api');
+                const validateResponse = await authApi.validate();
+                if (validateResponse.success && validateResponse.data?.user) {
+                    const freshUser = validateResponse.data.user;
+
+                    // Update with fresh data from validation
+                    localStorage.setItem('user_data', JSON.stringify(freshUser));
+                    setUserData({
+                        name: freshUser.username || 'User',
+                        email: freshUser.email || 'user@example.com'
+                    });
+                }
+            } catch (validationError) {
+                console.error('Failed to re-validate after plan cancellation:', validationError);
+                // Don't fail the whole operation if validation fails
+            }
+
+            // Trigger success animation
+            setShowSuccess('cancel');
         }
     };
 
     const handleSavePreferences = async () => {
         const response = await settingsApi.updatePreferences(preferences);
         if (response.success) {
-            setPreferencesMessage({ type: 'success', text: 'Preferences saved successfully!' });
-            setTimeout(() => setPreferencesMessage(null), 3000);
+            setShowSuccess('preferences');
         } else {
             setPreferencesMessage({ type: 'error', text: 'Failed to save preferences' });
         }
@@ -226,11 +272,7 @@ const UserDashboardPopup: React.FC<UserDashboardPopupProps> = ({
         });
 
         if (response.success) {
-            setPasswordMessage({ type: 'success', text: 'Password changed successfully!' });
-            setCurrentPassword('');
-            setNewPassword('');
-            setConfirmPassword('');
-            setTimeout(() => setPasswordMessage(null), 3000);
+            setShowSuccess('password');
         } else {
             setPasswordMessage({ type: 'error', text: response.error || 'Failed to change password' });
         }
@@ -610,6 +652,32 @@ const UserDashboardPopup: React.FC<UserDashboardPopupProps> = ({
                         )}
                     </div>
                 </div>
+
+                {/* Success Animations */}
+                <SuccessAnimation
+                    isVisible={showSuccess === 'cancel'}
+                    message="Plan Cancelled"
+                    onComplete={() => {
+                        if (onPlanUpdate) onPlanUpdate('free', false);
+                        onClose();
+                        setShowSuccess(null);
+                    }}
+                />
+                <SuccessAnimation
+                    isVisible={showSuccess === 'preferences'}
+                    message="Preferences Saved"
+                    onComplete={() => setShowSuccess(null)}
+                />
+                <SuccessAnimation
+                    isVisible={showSuccess === 'password'}
+                    message="Password Changed"
+                    onComplete={() => {
+                        setCurrentPassword('');
+                        setNewPassword('');
+                        setConfirmPassword('');
+                        setShowSuccess(null);
+                    }}
+                />
             </div>
 
             {/* Cancel Plan Confirmation Modal */}

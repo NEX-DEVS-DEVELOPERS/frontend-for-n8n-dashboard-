@@ -474,6 +474,19 @@ const App: React.FC = () => {
                   localStorage.setItem('user_data', JSON.stringify(user));
                   localStorage.setItem('user_plan', user.planTier);
                   localStorage.setItem('has_247_addon', JSON.stringify(user.has247Addon));
+
+                  // Immediately re-validate to ensure real-time sync
+                  try {
+                    const validateResponse = await authApi.validate();
+                    if (validateResponse.success && validateResponse.data?.user) {
+                      const freshUser = validateResponse.data.user;
+                      localStorage.setItem('user_data', JSON.stringify(freshUser));
+                      setUserPlan(freshUser.planTier);
+                      setHas247Addon(freshUser.has247Addon);
+                    }
+                  } catch (validationError) {
+                    console.error('Failed to re-validate after plan update:', validationError);
+                  }
                 }
               } catch (error) {
                 console.error('Failed to update plan in backend:', error);
@@ -495,6 +508,19 @@ const App: React.FC = () => {
                   localStorage.setItem('user_data', JSON.stringify(user));
                   localStorage.setItem('user_plan', user.planTier);
                   localStorage.setItem('has_247_addon', JSON.stringify(user.has247Addon));
+
+                  // Immediately re-validate to ensure real-time sync
+                  try {
+                    const validateResponse = await authApi.validate();
+                    if (validateResponse.success && validateResponse.data?.user) {
+                      const freshUser = validateResponse.data.user;
+                      localStorage.setItem('user_data', JSON.stringify(freshUser));
+                      setUserPlan(freshUser.planTier);
+                      setHas247Addon(freshUser.has247Addon);
+                    }
+                  } catch (validationError) {
+                    console.error('Failed to re-validate after addon toggle:', validationError);
+                  }
                 }
               } catch (error) {
                 console.error('Failed to update addon in backend:', error);
@@ -639,7 +665,7 @@ const App: React.FC = () => {
 
 
   return (
-    <div className="min-h-full flex flex-col bg-transparent text-foreground font-sans z-0 relative">
+    <div className="h-screen flex flex-col bg-transparent text-foreground font-sans z-0 relative overflow-hidden">
       <div className="fixed inset-0 z-[-1] pointer-events-none">
         <ParticleBackground />
       </div>
@@ -663,6 +689,11 @@ const App: React.FC = () => {
           setCurrentPage('pricing');
           setShowUserDashboard(false);
         }}
+        onPlanUpdate={(newPlan, has247Addon) => {
+          // Update state immediately when plan is canceled
+          setUserPlan(newPlan);
+          setHas247Addon(has247Addon);
+        }}
       />
 
       <Header
@@ -678,7 +709,7 @@ const App: React.FC = () => {
         weeklySupportLimit={weeklySupportLimit}
         nextSupportTicketExpiresAt={nextSupportTicketExpiresAt}
       />
-      <main className="flex-grow container mx-auto p-4 md:p-8">
+      <main className="flex-1 container mx-auto px-4 md:px-8 pt-24 md:pt-32 pb-4 md:pb-6 overflow-y-auto">
         {renderPage()}
       </main>
       <ChatbotWidget

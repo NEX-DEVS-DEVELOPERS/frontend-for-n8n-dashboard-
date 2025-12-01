@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<html lang="en" class="dark scroll-smooth">
+<html lang="en" class="dark">
 
 <head>
     <meta charset="UTF-8" />
@@ -66,161 +66,59 @@
     </script>
     <style>
         :root {
-            /* Premium Light Mode Variables (Bold & Crisp) */
-            /* Background: slightly darker slate to make white cards pop */
+            /* Light Mode */
             --background: 241 245 249;
             --foreground: 15 23 42;
-            /* Slate 900 */
             --card: 255 255 255;
             --card-foreground: 15 23 42;
-
-            /* Primary: Darker teal for bold colored areas in light mode */
             --primary: 13 148 136;
-            /* Teal 600 */
             --primary-foreground: 255 255 255;
-
             --muted: 226 232 240;
             --muted-foreground: 71 85 105;
-            /* Slate 600 for better readability */
-
-            /* Border: Much darker base (Slate 500) so border/40 is distinct and bold */
             --border: 100 116 139;
-
             --input: 15 23 42;
             --ring: 13 148 136;
         }
 
         .dark {
-            /* Dark Mode Variables (Deep & Glowing) */
+            /* Dark Mode */
             --background: 5 5 5;
             --foreground: 250 250 250;
             --card: 10 10 10;
             --card-foreground: 250 250 250;
             --primary: 72 168 163;
-            /* n8n cyan (Lighter) */
             --primary-foreground: 250 250 250;
-            --muted: 255 255 255;
-            --muted-foreground: 156 163 175;
-            --border: 255 255 255;
-            --input: 0 0 0;
-            --ring: 72 168 163;
+            --muted: 30 41 59;
+            --muted-foreground: 148 163 184;
+            --border: 51 65 85;
         }
 
-        /* Global smoothness optimizations */
-        html {
-            text-rendering: optimizeLegibility;
-            -webkit-font-smoothing: antialiased;
-            -moz-osx-font-smoothing: grayscale;
-        }
-
-        body {
-            transition: background-color 0.5s ease, color 0.5s ease;
-        }
-
-        /* === Light Mode Specific Boldness === */
-        html:not(.dark) .border,
-        html:not(.dark) .border-t,
-        html:not(.dark) .border-b,
-        html:not(.dark) .border-l,
-        html:not(.dark) .border-r,
-        html:not(.dark) .divide-y> :not([hidden])~ :not([hidden]),
-        html:not(.dark) .divide-x> :not([hidden])~ :not([hidden]) {
-            border-width: 1.5px;
-            /* Thicker borders for bold edges */
-        }
-
-        /* Make stroke icons bolder in light mode */
-        html:not(.dark) svg[fill="none"] {
-            stroke-width: 2px;
-            filter: drop-shadow(0 1px 0px rgba(0, 0, 0, 0.05));
-            /* Subtle depth */
-        }
-
-        /* === Animations === */
-
-        .will-change-scroll {
-            will-change: scroll-position;
-        }
-
-        .backface-hidden {
-            backface-visibility: hidden;
-            -webkit-backface-visibility: hidden;
-        }
-
-        /* Aurora Background Logic */
-        @keyframes move-aurora-1 {
-            0% {
-                transform: translate(0, 0) rotate(0deg);
-            }
-
-            50% {
-                transform: translate(40vw, 50vh) rotate(180deg);
-            }
-
-            100% {
-                transform: translate(0, 0) rotate(360deg);
-            }
-        }
-
-        @keyframes move-aurora-2 {
-            0% {
-                transform: translate(0, 0) rotate(0deg);
-            }
-
-            50% {
-                transform: translate(-30vw, -40vh) rotate(-180deg);
-            }
-
-            100% {
-                transform: translate(0, 0) rotate(-360deg);
-            }
-        }
-
-        @keyframes move-aurora-3 {
-            0% {
-                transform: translate(0, 0) rotate(0deg);
-            }
-
-            50% {
-                transform: translate(20vw, -60vh) rotate(120deg);
-            }
-
-            100% {
-                transform: translate(0, 0) rotate(360deg);
-            }
-        }
-
+        /* Aurora Background - Performance Optimized */
         #aurora-background {
             position: fixed;
-            top: 0;
-            left: 0;
-            width: 100%;
-            height: 100%;
+            inset: 0;
             z-index: -1;
             overflow: hidden;
-            filter: blur(100px);
-            opacity: 0.5;
-            transition: opacity 0.5s ease;
-        }
-
-        /* In light mode, use subtle opacity */
-        html:not(.dark) #aurora-background {
-            opacity: 0.35;
+            pointer-events: none;
+            contain: strict;
         }
 
         .aurora-shape {
             position: absolute;
+            border-radius: 50%;
+            filter: blur(40px);
             opacity: 0.6;
-            border-radius: 9999px;
+            will-change: auto;
         }
 
         .shape-1 {
-            width: 400px;
-            height: 400px;
-            top: 10vh;
-            left: 20vw;
+            width: 600px;
+            height: 600px;
+            top: -100px;
+            left: -100px;
             background: radial-gradient(circle, #48a8a3, transparent 60%);
             animation: move-aurora-1 25s ease-in-out infinite;
+            will-change: transform, opacity;
         }
 
         .shape-2 {
@@ -241,7 +139,26 @@
             animation: move-aurora-3 20s ease-in-out infinite;
         }
 
-        /* Custom scrollbar for a cleaner look - Adaptive colors */
+        /* Native Scroll - Performance Optimized */
+        html {
+            scroll-behavior: auto;
+            overflow-x: hidden;
+            overflow-y: auto;
+        }
+
+        body {
+            overflow-x: hidden;
+            overflow-y: auto;
+            overscroll-behavior: none;
+        }
+
+        /* Performance Hints */
+        * {
+            -webkit-font-smoothing: antialiased;
+            -moz-osx-font-smoothing: grayscale;
+        }
+
+        /* Scrollbar */
         ::-webkit-scrollbar {
             width: 8px;
         }
@@ -253,7 +170,6 @@
 
         ::-webkit-scrollbar-thumb {
             background: rgba(156, 163, 175, 0.4);
-            /* Neutral gray */
             border-radius: 10px;
         }
 
@@ -261,7 +177,6 @@
             background: rgba(156, 163, 175, 0.7);
         }
 
-        /* Light mode scrollbar tweaks */
         html:not(.dark) ::-webkit-scrollbar-thumb {
             background: rgba(100, 116, 139, 0.3);
         }
@@ -270,7 +185,7 @@
             background: rgba(100, 116, 139, 0.5);
         }
 
-        /* Styles for animated checkmark icon */
+        /* Checkmark Animation */
         .checkmark-circle {
             stroke-dasharray: 166;
             stroke-dashoffset: 166;
@@ -303,7 +218,7 @@
             }
         }
 
-        /* Styles for typing indicator */
+        /* Typing Indicator */
         @keyframes typing-dot-pulse {
 
             0%,
@@ -331,7 +246,7 @@
             animation-delay: -0.16s;
         }
 
-        /* View Transition Animations - Optimized for 60FPS */
+        /* View Transitions */
         ::view-transition-old(root),
         ::view-transition-new(root) {
             animation: none;
@@ -339,7 +254,6 @@
             display: block;
         }
 
-        /* Ensure the new view sits on top for the expanding effect */
         ::view-transition-new(root) {
             z-index: 9999;
         }
@@ -348,7 +262,6 @@
             z-index: 1;
         }
 
-        /* Prevent clicks during transition */
         ::view-transition-group(root) {
             pointer-events: none;
         }
