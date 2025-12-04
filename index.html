@@ -141,15 +141,18 @@
 
         /* Native Scroll - Performance Optimized */
         html {
-            scroll-behavior: auto;
+            scroll-behavior: smooth; /* Enable native smooth scrolling */
             overflow-x: hidden;
-            overflow-y: auto;
+            overflow-y: scroll; /* Force vertical scrollbar to prevent layout shift */
         }
 
         body {
             overflow-x: hidden;
-            overflow-y: auto;
-            overscroll-behavior: none;
+            min-height: 100vh;
+            position: relative;
+            /* Optimize painting */
+            -webkit-font-smoothing: antialiased;
+            text-rendering: optimizeLegibility;
         }
 
         /* Performance Hints */
