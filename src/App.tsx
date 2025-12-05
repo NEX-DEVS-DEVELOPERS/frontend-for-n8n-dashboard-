@@ -18,6 +18,8 @@ import PlanDashboard from './components/PlanDashboard';
 import RequestChangeModal from './components/RequestChangeModal';
 import UserDashboardPopup from './components/UserDashboardPopup';
 import UserManagementPage from './components/UserManagementPage';
+import AdminApp from './components/admin/AdminApp';
+import { io } from 'socket.io-client';
 import { authApi } from './services/api';
 
 type Page = 'dashboard' | 'howToUse' | 'support' | 'pricing' | 'subscription';
@@ -641,6 +643,53 @@ const App: React.FC = () => {
     validateAndSyncPlan();
   }, [isAuthenticated]);
 
+  // WebSocket Connection for Real-time Updates
+  useEffect(() => {
+    if (!isAuthenticated) return;
+
+    const token = localStorage.getItem('auth_token');
+    if (!token) return;
+
+    const socket = io('http://localhost:5174', {
+      auth: { token },
+      transports: ['websocket']
+    });
+
+    socket.on('connect', () => {
+      console.log('Connected to WebSocket server');
+    });
+
+    socket.on('dashboard_update', (data: any) => {
+      console.log('Received real-time update:', data);
+
+      // Refresh user data to reflect changes
+      const validateAndSync = async () => {
+        try {
+          const response = await authApi.validate();
+          if (response.success && response.data?.user) {
+            const user = response.data.user;
+            setUserPlan(user.planTier || 'free');
+            setHas247Addon(user.has247Addon || false);
+            localStorage.setItem('user_data', JSON.stringify(user));
+            localStorage.setItem('user_plan', user.planTier);
+            localStorage.setItem('has_247_addon', JSON.stringify(user.has247Addon));
+
+            // Also refresh support requests if needed
+            // For now, we just sync the plan and user data
+          }
+        } catch (error) {
+          console.error('Failed to sync after update:', error);
+        }
+      };
+
+      validateAndSync();
+    });
+
+    return () => {
+      socket.disconnect();
+    };
+  }, [isAuthenticated]);
+
   const handleLogout = () => {
     localStorage.removeItem('dashboard_session');
     localStorage.removeItem('support_requests');
@@ -659,9 +708,9 @@ const App: React.FC = () => {
   };
 
 
-  // Admin route handling - accessible without authentication
-  if (currentRoute === '/nexdev') {
-    return <UserManagementPage />;
+  // Admin route handling - accessible without authentication (handled by AdminApp)
+  if (currentRoute.startsWith('/nexdev')) {
+    return <AdminApp />;
   }
 
   if (!isAuthenticated) {
