@@ -1,24 +1,24 @@
-import React, { useState, useEffect, useRef } from 'react';
-import gsap from 'gsap';
+import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { Agent, ChatMessage, MessageAuthor, LogEntry, PlanTier } from '../types';
-import { ArrowUpIcon, ChatBubbleIcon, QuestionMarkCircleIcon, WrenchScrewdriverIcon, XIcon, ArrowsPointingOutIcon, ArrowsPointingInIcon, RefreshCwIcon, SparklesIcon, BriefcaseIcon, ClockIcon } from './icons';
+import { ArrowUpIcon, ChatBubbleIcon, QuestionMarkCircleIcon, WrenchScrewdriverIcon, XIcon, ArrowsPointingOutIcon, ArrowsPointingInIcon, RefreshCwIcon, SparklesIcon, BriefcaseIcon, ClockIcon, StopIcon } from './icons';
 import { Card, CardContent, CardFooter } from './ui';
-import { sendMessageToBackend, getChatbotConfig } from '../services/chatbotApi';
+import { sendMessageToBackend, getChatbotConfig, createChatSession } from '../services/chatbotApi';
 import ChatHistory, { ChatSession } from './ChatHistory';
 import { v4 as uuidv4 } from 'uuid';
+import gsap from 'gsap';
 
 const SimpleMarkdown: React.FC<{ text: string }> = ({ text }) => {
     const cleanedText = text
-        .replace(/^##\s+/gm, '') // Remove markdown headers
-        .replace(/(\*\*|__)(.*?)\1/g, '$2'); // Remove **bold** and __bold__, keeping the text
+        .replace(/^##\s+/gm, '')
+        .replace(/(\*\*|__)(.*?)\1/g, '$2');
 
     const html = cleanedText
-        .replace(/```([\s\S]*?)```/g, (match, p1) => `<pre class="bg-black/5 dark:bg-black/50 p-3 my-2 rounded-lg text-sm text-cyan-600 dark:text-cyan-300 font-mono overflow-x-auto border border-border/50"><code>${p1.trim().replace(/</g, "&lt;").replace(/>/g, "&gt;")}</code></pre>`)
-        .replace(/`([^`]+)`/g, '<code class="bg-primary/10 px-1.5 py-0.5 rounded text-primary font-mono text-xs border border-primary/20">$1</code>')
-        .replace(/\*(.*?)\*/g, '<strong class="text-foreground font-semibold">$1</strong>') // Use single asterisks for bold
+        .replace(/```([\s\S]*?)```/g, (_, p1) => `<pre class="bg-black/10 dark:bg-black/30 p-3 my-2 rounded-lg text-[13px] text-cyan-700 dark:text-cyan-300 font-mono overflow-x-auto"><code>${p1.trim().replace(/</g, "&lt;").replace(/>/g, "&gt;")}</code></pre>`)
+        .replace(/`([^`]+)`/g, '<code class="bg-cyan-500/10 px-1.5 py-0.5 rounded text-cyan-600 dark:text-cyan-400 font-mono text-[13px]">$1</code>')
+        .replace(/\*(.*?)\*/g, '<strong class="font-medium">$1</strong>')
         .replace(/\n/g, '<br />');
 
-    return <div className="prose prose-invert prose-base max-w-none leading-relaxed text-foreground/90 text-[15px]" dangerouslySetInnerHTML={{ __html: html }} />;
+    return <div className="max-w-none leading-relaxed" dangerouslySetInnerHTML={{ __html: html }} />;
 };
 
 interface ChatbotProps {
@@ -33,9 +33,10 @@ interface ChatbotProps {
 
 const CHAT_SESSIONS_KEY = 'zappy_chat_sessions';
 
-const Chatbot: React.FC<ChatbotProps> = ({ agentData, logs, onClose, isCentered, onToggleCenter, isMobile, userPlan }) => {
+const Chatbot: React.FC<ChatbotProps> = ({ onClose, isCentered, onToggleCenter, isMobile, userPlan }) => {
     const [sessions, setSessions] = useState<ChatSession[]>([]);
     const [currentSessionId, setCurrentSessionId] = useState<string>('');
+    const [backendSessionId, setBackendSessionId] = useState<string | null>(null);
     const [messages, setMessages] = useState<ChatMessage[]>([]);
     const [input, setInput] = useState('');
     const [isLoading, setIsLoading] = useState(false);
@@ -43,12 +44,24 @@ const Chatbot: React.FC<ChatbotProps> = ({ agentData, logs, onClose, isCentered,
     const [showHistory, setShowHistory] = useState(false);
     const scrollContainerRef = useRef<HTMLDivElement>(null);
     const currentSessionIdRef = useRef(currentSessionId);
+    const streamingRef = useRef<boolean>(false);
+    const abortControllerRef = useRef<AbortController | null>(null);
+    const cardRef = useRef<HTMLDivElement>(null);
 
     useEffect(() => {
         currentSessionIdRef.current = currentSessionId;
     }, [currentSessionId]);
 
-    // Initialize sessions and current chat
+    // Entrance animation
+    useEffect(() => {
+        if (cardRef.current) {
+            gsap.fromTo(cardRef.current,
+                { opacity: 0, y: 20, scale: 0.98 },
+                { opacity: 1, y: 0, scale: 1, duration: 0.3, ease: 'power2.out' }
+            );
+        }
+    }, []);
+
     useEffect(() => {
         const loadSessions = async () => {
             const storedSessionsRaw = localStorage.getItem(CHAT_SESSIONS_KEY);
@@ -56,7 +69,7 @@ const Chatbot: React.FC<ChatbotProps> = ({ agentData, logs, onClose, isCentered,
             setSessions(loadedSessions);
 
             if (loadedSessions.length > 0) {
-                const lastSession = loadedSessions[0]; // Assuming sorted by new
+                const lastSession = loadedSessions[0];
                 setCurrentSessionId(lastSession.id);
                 setMessages(lastSession.messages);
             } else {
@@ -67,33 +80,45 @@ const Chatbot: React.FC<ChatbotProps> = ({ agentData, logs, onClose, isCentered,
         loadSessions();
     }, []);
 
-    // Save sessions to local storage whenever they change
     useEffect(() => {
         if (sessions.length > 0) {
             localStorage.setItem(CHAT_SESSIONS_KEY, JSON.stringify(sessions));
         }
     }, [sessions]);
 
-    // Scroll to bottom
-    useEffect(() => {
+    const scrollToBottom = useCallback(() => {
         if (scrollContainerRef.current) {
-            gsap.to(scrollContainerRef.current, {
-                scrollTop: scrollContainerRef.current.scrollHeight,
-                duration: isStreaming ? 0.05 : 0.5,
-                ease: "power2.out",
-                overwrite: true
+            const container = scrollContainerRef.current;
+            requestAnimationFrame(() => {
+                container.scrollTo({
+                    top: container.scrollHeight,
+                    behavior: isStreaming ? 'auto' : 'smooth'
+                });
             });
         }
-    }, [messages, isLoading, isStreaming]);
+    }, [isStreaming]);
+
+    useEffect(() => {
+        scrollToBottom();
+    }, [messages, isLoading, scrollToBottom]);
 
     const startNewSession = async () => {
         const newId = uuidv4();
         let welcomeMessage = "Hello! I'm Zappy. How can I help you today?";
+        let newBackendSessionId: string | null = null;
+
         try {
-            const config = await getChatbotConfig();
-            welcomeMessage = config.welcomeMessage;
+            const sessionResult = await createChatSession();
+            if (sessionResult) {
+                newBackendSessionId = sessionResult.session.id;
+                setBackendSessionId(newBackendSessionId);
+                welcomeMessage = sessionResult.welcomeMessage;
+            } else {
+                const config = await getChatbotConfig();
+                welcomeMessage = config.welcomeMessage;
+            }
         } catch (e) {
-            console.error("Failed to fetch config", e);
+            console.error("Failed to create session", e);
         }
 
         const initialMessage: ChatMessage = {
@@ -105,7 +130,8 @@ const Chatbot: React.FC<ChatbotProps> = ({ agentData, logs, onClose, isCentered,
             id: newId,
             timestamp: Date.now(),
             title: 'New Conversation',
-            messages: [initialMessage]
+            messages: [initialMessage],
+            backendSessionId: newBackendSessionId || undefined
         };
 
         setSessions(prev => [newSession, ...prev]);
@@ -113,10 +139,9 @@ const Chatbot: React.FC<ChatbotProps> = ({ agentData, logs, onClose, isCentered,
         setMessages([initialMessage]);
     };
 
-    const updateCurrentSession = (updatedMessages: ChatMessage[]) => {
+    const updateCurrentSession = useCallback((updatedMessages: ChatMessage[]) => {
         setSessions(prev => prev.map(session => {
             if (session.id === currentSessionId) {
-                // Update title based on first user message if it's "New Conversation"
                 let title = session.title;
                 const firstUserMsg = updatedMessages.find(m => m.author === MessageAuthor.User);
                 if (session.title === 'New Conversation' && firstUserMsg) {
@@ -127,78 +152,99 @@ const Chatbot: React.FC<ChatbotProps> = ({ agentData, logs, onClose, isCentered,
                     ...session,
                     messages: updatedMessages,
                     timestamp: Date.now(),
-                    title
+                    title,
+                    backendSessionId: backendSessionId || session.backendSessionId
                 };
             }
             return session;
-        }).sort((a, b) => b.timestamp - a.timestamp)); // Keep sorted
-    };
+        }).sort((a, b) => b.timestamp - a.timestamp));
+    }, [currentSessionId, backendSessionId]);
 
-    const streamResponse = async (fullText: string) => {
+    const stopStreaming = useCallback(() => {
+        streamingRef.current = false;
+        setIsStreaming(false);
+        if (abortControllerRef.current) {
+            abortControllerRef.current.abort();
+            abortControllerRef.current = null;
+        }
+    }, []);
+
+    const streamResponse = useCallback(async (fullText: string) => {
         const targetSessionId = currentSessionIdRef.current;
         setIsStreaming(true);
+        streamingRef.current = true;
 
-        // Add placeholder
         setMessages(prev => [...prev, { author: MessageAuthor.Assistant, text: '' }]);
 
-        const chunks = fullText.split(/(\s+)/);
+        const chars = fullText.split('');
+        let currentIndex = 0;
         let currentText = '';
 
-        for (let i = 0; i < chunks.length; i++) {
-            // Check if user switched sessions
-            if (currentSessionIdRef.current !== targetSessionId) {
+        const animate = () => {
+            if (!streamingRef.current || currentSessionIdRef.current !== targetSessionId) {
                 setIsStreaming(false);
                 return;
             }
 
-            currentText += chunks[i];
+            if (currentIndex < chars.length) {
+                const charsToAdd = Math.min(3, chars.length - currentIndex);
+                currentText += chars.slice(currentIndex, currentIndex + charsToAdd).join('');
+                currentIndex += charsToAdd;
 
-            setMessages(prev => {
-                const newMessages = [...prev];
-                if (newMessages.length > 0) {
-                    newMessages[newMessages.length - 1] = {
-                        ...newMessages[newMessages.length - 1],
-                        text: currentText
-                    };
-                }
-                return newMessages;
-            });
+                setMessages(prev => {
+                    const newMessages = [...prev];
+                    if (newMessages.length > 0) {
+                        newMessages[newMessages.length - 1] = {
+                            ...newMessages[newMessages.length - 1],
+                            text: currentText
+                        };
+                    }
+                    return newMessages;
+                });
 
-            const delay = chunks[i].match(/^\s+$/) ? 20 : 50;
-            await new Promise(resolve => setTimeout(resolve, delay));
-        }
+                requestAnimationFrame(animate);
+            } else {
+                setMessages(prev => {
+                    const newMessages = [...prev];
+                    if (newMessages.length > 0) {
+                        newMessages[newMessages.length - 1] = {
+                            ...newMessages[newMessages.length - 1],
+                            text: fullText
+                        };
+                    }
+                    updateCurrentSession(newMessages);
+                    return newMessages;
+                });
 
-        // Final update
-        if (currentSessionIdRef.current === targetSessionId) {
-            setMessages(prev => {
-                const newMessages = [...prev];
-                if (newMessages.length > 0) {
-                    newMessages[newMessages.length - 1] = {
-                        ...newMessages[newMessages.length - 1],
-                        text: fullText
-                    };
-                }
-                updateCurrentSession(newMessages);
-                return newMessages;
-            });
-        }
+                setIsStreaming(false);
+                streamingRef.current = false;
+            }
+        };
 
-        setIsStreaming(false);
-    };
+        requestAnimationFrame(animate);
+    }, [updateCurrentSession]);
 
     const sendMessage = async (messageText: string) => {
         if (isLoading || isStreaming || !messageText.trim()) return;
 
         setIsLoading(true);
-        const userMessage: ChatMessage = { author: MessageAuthor.User, text: messageText };
+        abortControllerRef.current = new AbortController();
 
+        const userMessage: ChatMessage = { author: MessageAuthor.User, text: messageText };
         const newMessages = [...messages, userMessage];
         setMessages(newMessages);
         updateCurrentSession(newMessages);
 
         try {
-            const responseText = await sendMessageToBackend(messageText, newMessages);
-            setIsLoading(false); // Stop loading before streaming
+            const currentSession = sessions.find(s => s.id === currentSessionId);
+            const sessionIdToUse = backendSessionId || currentSession?.backendSessionId;
+
+            const responseText = await sendMessageToBackend(
+                messageText,
+                newMessages,
+                sessionIdToUse || undefined
+            );
+            setIsLoading(false);
             await streamResponse(responseText);
 
         } catch (error) {
@@ -206,7 +252,7 @@ const Chatbot: React.FC<ChatbotProps> = ({ agentData, logs, onClose, isCentered,
             setIsLoading(false);
             const errorMessage: ChatMessage = {
                 author: MessageAuthor.Assistant,
-                text: "I'm having trouble connecting to the server. Please try again later."
+                text: "I'm having trouble connecting. Please try again."
             };
             setMessages(prev => [...prev, errorMessage]);
         }
@@ -218,15 +264,34 @@ const Chatbot: React.FC<ChatbotProps> = ({ agentData, logs, onClose, isCentered,
     };
 
     const handleSuggestionClick = (suggestion: string) => {
-        setInput(suggestion);
         sendMessage(suggestion);
-        setInput('');
     };
 
     const handleSelectSession = (session: ChatSession) => {
         setCurrentSessionId(session.id);
         setMessages(session.messages);
+        setBackendSessionId(session.backendSessionId || null);
         setShowHistory(false);
+    };
+
+    const handleDeleteSession = (sessionId: string) => {
+        setSessions(prev => prev.filter(s => s.id !== sessionId));
+    };
+
+    // Animated close
+    const handleClose = () => {
+        if (cardRef.current) {
+            gsap.to(cardRef.current, {
+                opacity: 0,
+                y: 20,
+                scale: 0.98,
+                duration: 0.2,
+                ease: 'power2.in',
+                onComplete: onClose
+            });
+        } else {
+            onClose();
+        }
     };
 
     const suggestionPrompts = [
@@ -234,142 +299,160 @@ const Chatbot: React.FC<ChatbotProps> = ({ agentData, logs, onClose, isCentered,
         { icon: <QuestionMarkCircleIcon className="h-3.5 w-3.5" />, text: "My webhook test is failing, why?" },
     ];
 
-    const getHeaderBadge = () => {
-        if (userPlan === 'enterprise') {
-            return (
-                <div className="flex items-center gap-1.5 px-2 py-0.5 bg-purple-500/10 rounded text-[10px] font-medium text-purple-400 border border-purple-500/20">
-                    <BriefcaseIcon className="h-3 w-3" />
-                    <span>ENT</span>
-                </div>
-            );
-        }
-        if (userPlan === 'pro') {
-            return (
-                <div className="flex items-center gap-1.5 px-2 py-0.5 bg-primary/10 rounded text-[10px] font-medium text-primary border border-primary/20">
-                    <SparklesIcon className="h-3 w-3" />
-                    <span>PRO</span>
-                </div>
-            );
-        }
-        return null;
-    }
-
     return (
-        <Card className={`flex flex-col w-full h-full overflow-hidden bg-card/95 backdrop-blur-2xl rounded-2xl border shadow-2xl ${userPlan === 'enterprise' ? 'border-purple-500/20' : 'border-border/40'}`}>
+        <Card
+            ref={cardRef}
+            className="flex flex-col w-full h-full overflow-hidden rounded-2xl border border-cyan-500/30 shadow-2xl bg-white dark:bg-[#0c0c0e]"
+            style={{
+                boxShadow: '0 0 40px -10px rgba(6, 182, 212, 0.3), 0 25px 50px -12px rgba(0, 0, 0, 0.5)'
+            }}
+        >
             {/* Header */}
-            <header className="flex-shrink-0 h-14 bg-background/50 backdrop-blur-md border-b border-border/10 flex items-center justify-between px-4 z-30 relative">
+            <header className="flex-shrink-0 h-14 flex items-center justify-between px-4 z-30 border-b border-gray-200 dark:border-white/5 bg-white dark:bg-[#0c0c0e]">
                 <div className="flex items-center gap-3">
-                    <div className={`p-1.5 rounded-lg ${userPlan === 'enterprise' ? 'bg-purple-500/10 text-purple-400' : 'bg-primary/10 text-primary'}`}>
+                    <div className={`p-2 rounded-xl ${userPlan === 'enterprise' ? 'bg-purple-500/10 text-purple-600 dark:text-purple-400' : 'bg-cyan-500/10 text-cyan-600 dark:text-cyan-400'}`}>
                         {userPlan === 'enterprise' ? <BriefcaseIcon className="h-4 w-4" /> : <ChatBubbleIcon className="h-4 w-4" />}
                     </div>
-                    <div>
-                        <div className="flex items-center gap-2">
-                            <h3 className="font-semibold text-sm text-foreground">Zappy</h3>
-                            {getHeaderBadge()}
-                        </div>
+                    <div className="flex items-center gap-2">
+                        <span className="text-sm font-semibold text-gray-900 dark:text-white">Zappy</span>
+                        <span className={`px-1.5 py-0.5 rounded text-[9px] font-bold uppercase tracking-wide ${userPlan === 'enterprise' ? 'bg-purple-500/15 text-purple-600 dark:text-purple-400' : 'bg-cyan-500/15 text-cyan-600 dark:text-cyan-400'
+                            }`}>
+                            {userPlan === 'enterprise' ? 'ENT' : userPlan === 'pro' ? 'PRO' : 'FREE'}
+                        </span>
                     </div>
                 </div>
                 <div className="flex items-center gap-1">
                     <button
                         onClick={() => setShowHistory(!showHistory)}
-                        className={`p-2 rounded-md transition-colors ${showHistory ? 'bg-muted text-foreground' : 'text-muted-foreground hover:bg-muted/50 hover:text-foreground'}`}
-                        title="History"
+                        className={`p-2 rounded-lg transition-all ${showHistory ? 'bg-gray-100 dark:bg-white/10 text-gray-900 dark:text-white' : 'text-gray-500 dark:text-white/40 hover:bg-gray-100 dark:hover:bg-white/5 hover:text-gray-900 dark:hover:text-white/70'}`}
                     >
                         <ClockIcon className="h-4 w-4" />
                     </button>
-                    <button
-                        onClick={startNewSession}
-                        className="p-2 rounded-md text-muted-foreground hover:bg-muted/50 hover:text-foreground transition-colors"
-                        title="New Chat"
-                    >
+                    <button onClick={startNewSession} className="p-2 rounded-lg text-gray-500 dark:text-white/40 hover:bg-gray-100 dark:hover:bg-white/5 hover:text-gray-900 dark:hover:text-white/70 transition-all">
                         <RefreshCwIcon className="h-4 w-4" />
                     </button>
                     {!isMobile && (
-                        <button onClick={onToggleCenter} className="p-2 rounded-md text-muted-foreground hover:bg-muted/50 hover:text-foreground transition-colors" title={isCentered ? 'Dock' : 'Center'}>
+                        <button onClick={onToggleCenter} className="p-2 rounded-lg text-gray-500 dark:text-white/40 hover:bg-gray-100 dark:hover:bg-white/5 hover:text-gray-900 dark:hover:text-white/70 transition-all">
                             {isCentered ? <ArrowsPointingInIcon className="h-4 w-4" /> : <ArrowsPointingOutIcon className="h-4 w-4" />}
                         </button>
                     )}
-                    <button onClick={onClose} className="p-2 rounded-md text-muted-foreground hover:bg-red-500/10 hover:text-red-500 transition-colors">
+                    <button onClick={handleClose} className="p-2 rounded-lg text-gray-500 dark:text-white/40 hover:bg-red-50 dark:hover:bg-red-500/10 hover:text-red-500 dark:hover:text-red-400 transition-all">
                         <XIcon className="h-4 w-4" />
                     </button>
                 </div>
             </header>
 
-            {/* Main Content Area */}
-            <div className="relative flex-grow flex flex-col min-h-0 overflow-hidden">
-                {/* Chat History Overlay */}
+            {/* Main Content */}
+            <div className="relative flex-grow flex flex-col min-h-0 overflow-hidden bg-white dark:bg-[#0c0c0e]">
                 {showHistory && (
                     <ChatHistory
                         sessions={sessions}
                         onSelectSession={handleSelectSession}
                         userPlan={userPlan}
                         onClose={() => setShowHistory(false)}
+                        onDeleteSession={handleDeleteSession}
                     />
                 )}
 
-                <CardContent ref={scrollContainerRef} className="flex-grow p-4 overflow-y-auto space-y-5 bg-background/20">
+                {/* Chat messages */}
+                <CardContent
+                    ref={scrollContainerRef}
+                    className="flex-grow px-5 pt-6 pb-4 overflow-y-auto space-y-4"
+                    style={{
+                        scrollBehavior: 'auto',
+                        overscrollBehavior: 'contain',
+                        WebkitOverflowScrolling: 'touch',
+                        scrollbarWidth: 'none',
+                        msOverflowStyle: 'none'
+                    }}
+                >
                     {messages.map((msg, index) => (
                         <div key={index} className={`flex gap-3 ${msg.author === MessageAuthor.User ? 'justify-end' : ''}`}>
                             {msg.author === MessageAuthor.Assistant && (
-                                <div className={`h-7 w-7 rounded-full flex items-center justify-center flex-shrink-0 mt-0.5 ${userPlan === 'enterprise' ? 'bg-purple-500/10 text-purple-400' : 'bg-primary/10 text-primary'}`}>
-                                    {userPlan === 'enterprise' ? <BriefcaseIcon className="h-3.5 w-3.5" /> : <ChatBubbleIcon className="h-3.5 w-3.5" />}
+                                <div className={`h-8 w-8 rounded-xl flex items-center justify-center flex-shrink-0 ${userPlan === 'enterprise' ? 'bg-purple-500/10 text-purple-600 dark:text-purple-400' : 'bg-cyan-500/10 text-cyan-600 dark:text-cyan-400'
+                                    }`}>
+                                    {userPlan === 'enterprise' ? <BriefcaseIcon className="h-4 w-4" /> : <ChatBubbleIcon className="h-4 w-4" />}
                                 </div>
                             )}
-                            <div className={`max-w-[85%] px-4 py-3 rounded-2xl text-[15px] leading-relaxed shadow-sm ${msg.author === MessageAuthor.User
-                                ? 'bg-primary text-primary-foreground rounded-tr-sm'
-                                : 'bg-card border border-border/40 rounded-tl-sm'
-                                }`}>
+                            <div className={`max-w-[80%] px-4 py-3 rounded-2xl ${msg.author === MessageAuthor.User
+                                ? 'bg-cyan-500 text-white rounded-tr-md'
+                                : 'bg-gray-100 dark:bg-white/[0.03] text-gray-900 dark:text-white/90 rounded-tl-md'
+                                }`}
+                                style={{ fontSize: '15px', lineHeight: '1.6' }}
+                            >
                                 <SimpleMarkdown text={msg.text} />
                             </div>
                         </div>
                     ))}
                     {isLoading && (
                         <div className="flex gap-3">
-                            <div className={`h-7 w-7 rounded-full flex items-center justify-center flex-shrink-0 mt-0.5 ${userPlan === 'enterprise' ? 'bg-purple-500/10 text-purple-400' : 'bg-primary/10 text-primary'}`}>
-                                {userPlan === 'enterprise' ? <BriefcaseIcon className="h-3.5 w-3.5" /> : <ChatBubbleIcon className="h-3.5 w-3.5" />}
+                            <div className={`h-8 w-8 rounded-xl flex items-center justify-center flex-shrink-0 ${userPlan === 'enterprise' ? 'bg-purple-500/10 text-purple-600 dark:text-purple-400' : 'bg-cyan-500/10 text-cyan-600 dark:text-cyan-400'
+                                }`}>
+                                {userPlan === 'enterprise' ? <BriefcaseIcon className="h-4 w-4" /> : <ChatBubbleIcon className="h-4 w-4" />}
                             </div>
-                            <div className="bg-card border border-border/40 rounded-tl-sm px-4 py-3 rounded-2xl">
-                                <div className="flex items-center space-x-1">
-                                    <span className="h-1.5 w-1.5 bg-foreground/40 rounded-full animate-bounce [animation-delay:-0.3s]"></span>
-                                    <span className="h-1.5 w-1.5 bg-foreground/40 rounded-full animate-bounce [animation-delay:-0.15s]"></span>
-                                    <span className="h-1.5 w-1.5 bg-foreground/40 rounded-full animate-bounce"></span>
+                            <div className="bg-gray-100 dark:bg-white/[0.03] rounded-tl-md px-4 py-3 rounded-2xl">
+                                <div className="flex items-center space-x-1.5">
+                                    <span className="h-2 w-2 bg-gray-400 dark:bg-white/30 rounded-full animate-bounce [animation-delay:-0.3s]"></span>
+                                    <span className="h-2 w-2 bg-gray-400 dark:bg-white/30 rounded-full animate-bounce [animation-delay:-0.15s]"></span>
+                                    <span className="h-2 w-2 bg-gray-400 dark:bg-white/30 rounded-full animate-bounce"></span>
                                 </div>
                             </div>
                         </div>
                     )}
                 </CardContent>
 
-                <CardFooter className="p-3 flex-col gap-2 border-t border-border/10 bg-card/30 backdrop-blur-sm">
+                {/* Footer */}
+                <CardFooter className="p-4 flex-col gap-3 border-t border-gray-200 dark:border-white/5 bg-white dark:bg-[#0c0c0e]">
+                    {/* Suggestion prompts */}
                     {messages.length <= 1 && (
-                        <div className="flex gap-2 overflow-x-auto w-full pb-2 no-scrollbar">
+                        <div className="flex gap-2 overflow-x-auto w-full pb-1 no-scrollbar">
                             {suggestionPrompts.map((prompt, i) => (
-                                <button key={i} onClick={() => handleSuggestionClick(prompt.text)} className="flex-shrink-0 px-3 py-2 bg-muted/30 border border-border/30 hover:bg-primary/5 hover:border-primary/20 rounded-lg text-xs text-muted-foreground hover:text-foreground flex items-center gap-2 transition-all whitespace-nowrap">
+                                <button
+                                    key={i}
+                                    onClick={() => handleSuggestionClick(prompt.text)}
+                                    className="flex-shrink-0 px-3 py-2 bg-gray-100 dark:bg-white/[0.03] hover:bg-gray-200 dark:hover:bg-white/[0.06] rounded-xl text-[13px] text-gray-600 dark:text-white/70 hover:text-gray-900 dark:hover:text-white flex items-center gap-2 transition-all whitespace-nowrap"
+                                >
                                     {prompt.icon}
                                     <span>{prompt.text}</span>
                                 </button>
                             ))}
                         </div>
                     )}
-                    <div className="relative w-full">
-                        <textarea
-                            value={input}
-                            onChange={(e) => setInput(e.target.value)}
-                            onKeyDown={(e) => { if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); handleSend(); } }}
-                            placeholder="Type your question..."
-                            className="w-full bg-muted/30 border border-border/30 rounded-xl px-4 py-3 pr-10 text-foreground focus:ring-1 focus:ring-primary/30 focus:border-primary/30 outline-none transition-all resize-none placeholder:text-muted-foreground/50 text-sm"
-                            rows={1}
-                        />
+
+                    {/* Input bar */}
+                    <div className="relative w-full flex items-center gap-2">
+                        <div className="relative flex-1">
+                            <input
+                                type="text"
+                                value={input}
+                                onChange={(e) => setInput(e.target.value)}
+                                onKeyDown={(e) => { if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); handleSend(); } }}
+                                placeholder="Type your question..."
+                                className="w-full h-12 bg-gray-100 dark:bg-white/[0.03] rounded-xl px-4 text-gray-900 dark:text-white text-[15px] focus:ring-1 focus:ring-cyan-500/30 focus:bg-gray-50 dark:focus:bg-white/[0.05] outline-none transition-all placeholder:text-gray-400 dark:placeholder:text-white/25"
+                            />
+                        </div>
+
+                        {/* Stop button */}
+                        {isStreaming && (
+                            <button
+                                onClick={stopStreaming}
+                                className="h-12 w-12 rounded-xl bg-red-50 dark:bg-red-500/10 hover:bg-red-100 dark:hover:bg-red-500/20 flex items-center justify-center text-red-500 dark:text-red-400 transition-all"
+                                title="Stop generating"
+                            >
+                                <StopIcon className="h-5 w-5" />
+                            </button>
+                        )}
+
+                        {/* Send button */}
                         <button
                             onClick={handleSend}
                             disabled={isLoading || isStreaming || !input.trim()}
-                            className={`absolute right-2 top-1/2 -translate-y-1/2 h-7 w-7 rounded-lg flex items-center justify-center transition-all duration-200
-                            ${isLoading || isStreaming || !input.trim()
-                                    ? 'text-muted-foreground/30 cursor-not-allowed'
-                                    : 'bg-primary text-primary-foreground hover:bg-primary/90 shadow-sm'
-                                }
-                        `}
+                            className={`h-12 w-12 rounded-xl flex items-center justify-center transition-all duration-200 ${isLoading || isStreaming || !input.trim()
+                                ? 'bg-gray-100 dark:bg-white/[0.03] text-gray-300 dark:text-white/20 cursor-not-allowed'
+                                : 'bg-cyan-500 text-white hover:bg-cyan-400 shadow-lg shadow-cyan-500/20'
+                                }`}
                         >
-                            <ArrowUpIcon className="h-4 w-4" />
+                            <ArrowUpIcon className="h-5 w-5" />
                         </button>
                     </div>
                 </CardFooter>

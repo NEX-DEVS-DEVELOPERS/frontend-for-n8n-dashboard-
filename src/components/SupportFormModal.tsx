@@ -184,7 +184,7 @@ const SupportFormModal: React.FC<SupportFormModalProps> = ({
 
                 <div className="grid w-full items-center gap-2">
                   <Label className="text-sm">Choose your support specialist</Label>
-                  <p className="text-xs text-muted-foreground mb-2">Our experts will resolve your issue in under 2 hours.</p>
+                  <p className="text-xs text-muted-foreground mb-2">Our experts will resolve your issue as quickly as possible.</p>
                   <div className="space-y-2">
                     {supportTeam.map((specialist) => (
                       <label key={specialist.id} htmlFor={specialist.id} className="block cursor-pointer">

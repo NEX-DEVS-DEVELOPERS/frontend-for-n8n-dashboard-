@@ -14,7 +14,7 @@ import ChatbotWidget, { ChatbotWidgetRef } from './components/ChatbotWidget';
 import LoginPage from './components/LoginPage';
 import ParticleBackground from './components/ParticleBackground';
 import PricingPage from './components/PricingPage';
-import SubscriptionPage from './components/SubscriptionPage';
+import PlanDashboard from './components/PlanDashboard';
 import RequestChangeModal from './components/RequestChangeModal';
 import UserDashboardPopup from './components/UserDashboardPopup';
 import UserManagementPage from './components/UserManagementPage';
@@ -530,12 +530,17 @@ const App: React.FC = () => {
         );
       case 'subscription':
         return (
-          <SubscriptionPage
+          <PlanDashboard
             currentPlan={userPlan}
             has247Addon={has247Addon}
             usageCount={supportRequests.length}
             usageLimit={weeklySupportLimit}
             onNavigateToPricing={() => setCurrentPage('pricing')}
+            username={JSON.parse(localStorage.getItem('user_data') || '{}').username || 'User'}
+            email={JSON.parse(localStorage.getItem('user_data') || '{}').email || ''}
+            onOpenChatbot={openChatbot}
+            onAddSupportRequest={addSupportRequest}
+            nextSupportTicketExpiresAt={nextSupportTicketExpiresAt}
           />
         );
       case 'support':

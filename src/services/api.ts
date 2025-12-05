@@ -254,6 +254,37 @@ export const formsApi = {
 };
 
 /**
+ * Dashboard API
+ */
+export const dashboardApi = {
+    async getOverview(): Promise<ApiResponse<any>> {
+        return apiFetch('/dashboard/overview');
+    },
+
+    async getDevCredits(): Promise<ApiResponse<any>> {
+        return apiFetch('/dashboard/dev-credits');
+    },
+
+    async getChangelog(limit?: number): Promise<ApiResponse<any>> {
+        const params = limit ? `?limit=${limit}` : '';
+        return apiFetch(`/dashboard/changelog${params}`);
+    },
+
+    async getActivity(limit?: number): Promise<ApiResponse<any>> {
+        const params = limit ? `?limit=${limit}` : '';
+        return apiFetch(`/dashboard/activity${params}`);
+    },
+
+    async getInvoices(): Promise<ApiResponse<any>> {
+        return apiFetch('/dashboard/invoices');
+    },
+
+    async getRequests(): Promise<ApiResponse<any>> {
+        return apiFetch('/dashboard/requests');
+    }
+};
+
+/**
  * Agents API
  */
 export const agentsApi = {
@@ -370,6 +401,7 @@ export default {
     auth: authApi,
     support: supportApi,
     forms: formsApi,
+    dashboard: dashboardApi,
     agents: agentsApi,
     admin: adminApi,
     settings: settingsApi,
