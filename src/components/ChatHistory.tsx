@@ -195,8 +195,8 @@ const ChatHistory: React.FC<ChatHistoryProps> = ({
             >
                 <div className="flex items-start gap-3">
                     <div className={`mt-0.5 p-2 rounded-lg flex-shrink-0 ${userPlan === 'enterprise'
-                            ? 'bg-purple-500/10 text-purple-600 dark:text-purple-400'
-                            : 'bg-cyan-500/10 text-cyan-600 dark:text-cyan-400'
+                        ? 'bg-purple-500/10 text-purple-600 dark:text-purple-400'
+                        : 'bg-cyan-500/10 text-cyan-600 dark:text-cyan-400'
                         }`}>
                         <ChatBubbleIcon className="h-4 w-4" />
                     </div>
@@ -247,8 +247,8 @@ const ChatHistory: React.FC<ChatHistoryProps> = ({
                 <div className="flex-shrink-0 flex items-center justify-between px-5 py-4 border-b border-gray-200 dark:border-white/5">
                     <div className="flex items-center gap-3">
                         <div className={`p-2 rounded-xl ${userPlan === 'enterprise'
-                                ? 'bg-purple-500/10 text-purple-600 dark:text-purple-400'
-                                : 'bg-cyan-500/10 text-cyan-600 dark:text-cyan-400'
+                            ? 'bg-purple-500/10 text-purple-600 dark:text-purple-400'
+                            : 'bg-cyan-500/10 text-cyan-600 dark:text-cyan-400'
                             }`}>
                             <ClockIcon className="h-5 w-5" />
                         </div>
@@ -267,8 +267,8 @@ const ChatHistory: React.FC<ChatHistoryProps> = ({
                     <div className="flex items-center gap-2">
                         {userPlan !== 'free' && (
                             <span className={`px-2 py-1 rounded-lg text-[10px] font-semibold ${userPlan === 'enterprise'
-                                    ? 'bg-purple-500/10 text-purple-600 dark:text-purple-400'
-                                    : 'bg-cyan-500/10 text-cyan-600 dark:text-cyan-400'
+                                ? 'bg-purple-500/10 text-purple-600 dark:text-purple-400'
+                                : 'bg-cyan-500/10 text-cyan-600 dark:text-cyan-400'
                                 }`}>
                                 {userPlan === 'enterprise' ? 'Enterprise' : 'Pro'}
                             </span>

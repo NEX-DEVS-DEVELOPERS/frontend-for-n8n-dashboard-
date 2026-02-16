@@ -14,6 +14,8 @@ const AddAgentModal: React.FC<AddAgentModalProps> = ({ onClose, onAddAgent }) =>
   const [name, setName] = useState('');
   const [webhookUrl, setWebhookUrl] = useState('');
   const [schedule, setSchedule] = useState('');
+  const [method, setMethod] = useState<'GET' | 'POST'>('POST');
+  const [payload, setPayload] = useState('');
   const [formError, setFormError] = useState('');
 
   const [validationStatus, setValidationStatus] = useState<ValidationStatus>(ValidationStatus.Idle);
@@ -62,29 +64,31 @@ const AddAgentModal: React.FC<AddAgentModalProps> = ({ onClose, onAddAgent }) =>
 
   const handleTestConnection = async () => {
     if (!webhookUrl.trim() || !webhookUrl.startsWith('https://')) {
-      setValidationStatus(ValidationStatus.Invalid);
-      setValidationError('A valid HTTPS URL is required.');
-      return;
+      // Allow localhost for testing if needed, though https is preferred
+      if (!webhookUrl.includes('localhost')) {
+        setValidationStatus(ValidationStatus.Invalid);
+        setValidationError('A valid HTTPS URL is required.');
+        return;
+      }
     }
 
     setValidationStatus(ValidationStatus.Testing);
     setValidationError(null);
 
     try {
-      const response = await fetch(webhookUrl, { method: 'OPTIONS' });
-      if (response.ok) {
+      const { n8nApi } = await import('../services/api');
+      const response = await n8nApi.testWebhook(webhookUrl);
+
+      if (response.success && response.data) {
         setValidationStatus(ValidationStatus.Valid);
+        setValidationError(null);
       } else {
         setValidationStatus(ValidationStatus.Invalid);
-        setValidationError(`Test failed with status ${response.status}. Check URL and CORS policy.`);
+        setValidationError(response.error || 'Test failed. Check URL and ensure n8n webhook is accessible.');
       }
     } catch (error) {
       setValidationStatus(ValidationStatus.Invalid);
-      if (error instanceof TypeError) {
-        setValidationError('Test failed. This could be a CORS issue or a network problem. Check the browser console for details.');
-      } else {
-        setValidationError('An unexpected error occurred during the test.');
-      }
+      setValidationError(error instanceof Error ? error.message : 'An unexpected error occurred during the test.');
     }
   };
 
@@ -93,18 +97,34 @@ const AddAgentModal: React.FC<AddAgentModalProps> = ({ onClose, onAddAgent }) =>
       setFormError('Agent name is required.');
       return;
     }
-    if (validationStatus !== ValidationStatus.Valid) {
+
+    // Allow saving if testing wasn't done for localhost, but warn? 
+    // Enforce testing for now unless localhost
+    if (validationStatus !== ValidationStatus.Valid && !webhookUrl.includes('localhost')) {
       setFormError('Webhook URL must be successfully tested before adding.');
       return;
     }
+
+    // Validate JSON payload
+    if (payload.trim()) {
+      try {
+        JSON.parse(payload);
+      } catch (e) {
+        setFormError('Invalid JSON payload.');
+        return;
+      }
+    }
+
     setFormError('');
-    onAddAgent({ name, webhookUrl, schedule });
+    onAddAgent({ name, webhookUrl, schedule, method, inputPayload: payload });
     setName('');
     setWebhookUrl('');
     setSchedule('');
+    setMethod('POST');
+    setPayload('');
     setValidationStatus(ValidationStatus.Idle);
     setValidationError(null);
-    handleClose(); // Close modal on success
+    handleClose();
   };
 
   const getMinScheduleDate = () => {
@@ -184,20 +204,46 @@ const AddAgentModal: React.FC<AddAgentModalProps> = ({ onClose, onAddAgent }) =>
             </div>
           )}
 
-          <div className="grid w-full items-center gap-2">
-            <Label htmlFor="schedule-time" className="text-sm">Schedule (Optional)</Label>
-            <Input
-              id="schedule-time"
-              type="datetime-local"
-              value={schedule}
-              onChange={(e) => setSchedule(e.target.value)}
-              min={getMinScheduleDate()}
-              title="Optional: Schedule a future run time for this agent."
-              className="h-10 text-sm"
-            />
-            <p className="text-xs text-muted-foreground">Note: Scheduling only works while this browser tab is open.</p>
+          <div className="grid grid-cols-2 gap-4">
+            <div className="grid w-full items-center gap-2">
+              <Label className="text-sm">Method</Label>
+              <div className="flex bg-secondary/50 p-1 rounded-md">
+                <button
+                  type="button"
+                  onClick={() => setMethod('POST')}
+                  className={`flex-1 text-xs font-medium py-1.5 rounded-sm transition-all ${method === 'POST' ? 'bg-primary text-primary-foreground shadow-sm' : 'text-muted-foreground hover:text-foreground'}`}
+                >POST</button>
+                <button
+                  type="button"
+                  onClick={() => setMethod('GET')}
+                  className={`flex-1 text-xs font-medium py-1.5 rounded-sm transition-all ${method === 'GET' ? 'bg-primary text-primary-foreground shadow-sm' : 'text-muted-foreground hover:text-foreground'}`}
+                >GET</button>
+              </div>
+            </div>
+
+            <div className="grid w-full items-center gap-2">
+              <Label htmlFor="schedule-time" className="text-sm">Schedule</Label>
+              <Input
+                id="schedule-time"
+                type="datetime-local"
+                value={schedule}
+                onChange={(e) => setSchedule(e.target.value)}
+                min={getMinScheduleDate()}
+                className="h-10 text-sm"
+              />
+            </div>
           </div>
 
+          <div className="grid w-full items-center gap-2">
+            <Label htmlFor="payload" className="text-sm">Initial Payload (JSON) <span className="text-muted-foreground text-xs font-normal ml-1">(Optional)</span></Label>
+            <textarea
+              id="payload"
+              value={payload}
+              onChange={(e) => setPayload(e.target.value)}
+              placeholder='{"key": "value"}'
+              className="min-h-[80px] w-full rounded-md border border-input bg-background/50 px-3 py-2 text-sm ring-offset-background placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50 resize-y font-mono"
+            />
+          </div>
 
           {formError && <p className="text-sm font-medium text-red-400 text-center bg-red-900/20 py-2 rounded-lg">{formError}</p>}
         </main>
@@ -208,7 +254,7 @@ const AddAgentModal: React.FC<AddAgentModalProps> = ({ onClose, onAddAgent }) =>
           </Button>
           <Button
             onClick={handleAddAgent}
-            disabled={validationStatus !== ValidationStatus.Valid}
+            disabled={validationStatus !== ValidationStatus.Valid && !webhookUrl.includes('localhost')} // Strict unless localhost
             size="lg"
             className="h-10 text-sm"
           >

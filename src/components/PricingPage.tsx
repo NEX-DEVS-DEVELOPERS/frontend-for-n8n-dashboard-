@@ -208,7 +208,7 @@ const PricingPage: React.FC<PricingPageProps> = ({ currentPlan, has247Addon, onS
                 <div className="pricing-card grid grid-cols-1 lg:grid-cols-3 gap-6">
                     <div className="lg:col-span-2">
                         <Card className="h-full bg-card/40 backdrop-blur-xl border-white/10 hover:border-purple-500/20 transition-colors duration-500 group">
-                            <CardContent className="p-8">
+                            <CardContent className="p-8 pt-12">
                                 <div className="flex flex-col md:flex-row md:items-center gap-6 mb-8">
                                     <div className="p-3 bg-purple-500/10 rounded-xl border border-purple-500/20 shadow-[0_0_25px_-5px_rgba(168,85,247,0.2)] group-hover:shadow-[0_0_35px_-5px_rgba(168,85,247,0.4)] transition-shadow duration-500">
                                         <BriefcaseIcon className="h-8 w-8 text-purple-400" />
@@ -262,7 +262,7 @@ const PricingPage: React.FC<PricingPageProps> = ({ currentPlan, has247Addon, onS
 
                     {/* Add-on Section */}
                     <Card className="bg-card/40 backdrop-blur-xl border-white/10 hover:border-blue-500/20 lg:col-span-1 transition-colors duration-500 group">
-                        <CardContent className="p-8 flex flex-col h-full justify-center">
+                        <CardContent className="p-8 pt-12 flex flex-col h-full justify-center">
                             <div className="flex items-center gap-3 mb-4">
                                 <div className="p-2.5 bg-blue-500/10 rounded-lg border border-blue-500/20 shadow-[0_0_20px_-5px_rgba(59,130,246,0.2)] group-hover:shadow-[0_0_30px_-5px_rgba(59,130,246,0.4)] transition-shadow duration-500">
                                     <ShieldCheckIcon className="h-6 w-6 text-blue-400" />

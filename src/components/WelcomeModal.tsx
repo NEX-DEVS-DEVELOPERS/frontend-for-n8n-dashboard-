@@ -73,12 +73,12 @@ const WelcomeModal: React.FC<WelcomeModalProps> = ({ onClose }) => {
       >
         <header className="flex items-center justify-between p-6 pb-2 modal-content-animation">
           <div className="flex items-center gap-4">
-            <div className="p-2 bg-primary/10 rounded-xl border border-primary/20 shadow-sm">
-              <BookOpenIcon className="h-6 w-6 text-primary" />
+            <div className="p-3 bg-primary/10 rounded-2xl border border-primary/20 shadow-lg shadow-primary/5">
+              <img src="/n8n-logo.svg" alt="N8n Logo" className="h-8 w-8" />
             </div>
             <div>
-              <h2 className="text-2xl font-bold text-foreground tracking-tight">Welcome Guide</h2>
-              <p className="text-base text-muted-foreground">Setup your environment</p>
+              <h2 className="text-2xl font-black text-foreground tracking-tight">Nex-Devs</h2>
+              <p className="text-sm text-muted-foreground font-medium">N8N DASHBOARD SYSTEM</p>
             </div>
           </div>
           <Button variant="ghost" size="icon" onClick={handleClose} className="h-9 w-9 rounded-full hover:bg-white/10 -mt-4 -mr-2">

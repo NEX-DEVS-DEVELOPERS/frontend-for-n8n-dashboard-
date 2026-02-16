@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
 import { UserPlus, Mail, Lock, Shield, ArrowLeft, CheckCircle, AlertCircle } from 'lucide-react';
+import { API_BASE_URL } from '../../services/api';
 
 interface AdminAddUserProps {
     adminPassword: string;
@@ -28,7 +29,7 @@ const AdminAddUser: React.FC<AdminAddUserProps> = ({ adminPassword, onBack }) =>
             const session = localStorage.getItem('nexdev_admin_session');
             const pwd = adminPassword || (session ? JSON.parse(session).password : '');
 
-            const response = await fetch('http://localhost:3001/api/admin/users', {
+            const response = await fetch(`${API_BASE_URL}/admin/users`, {
                 method: 'POST',
                 headers: {
                     'Content-Type': 'application/json',

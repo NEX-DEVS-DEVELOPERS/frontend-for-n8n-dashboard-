@@ -1,5 +1,7 @@
 import React, { useState } from 'react';
 import { Shield, Lock, ArrowRight, AlertCircle } from 'lucide-react';
+import { API_BASE_URL } from '../../services/api';
+import ParticleBackground from '../ParticleBackground';
 
 interface AdminLoginPageProps {
     onLoginSuccess: (password: string) => void;
@@ -16,7 +18,7 @@ const AdminLoginPage: React.FC<AdminLoginPageProps> = ({ onLoginSuccess }) => {
         setIsLoading(true);
 
         try {
-            const response = await fetch('http://localhost:3001/api/admin/verify', {
+            const response = await fetch(`${API_BASE_URL}/admin/verify`, {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({ password })
@@ -37,17 +39,16 @@ const AdminLoginPage: React.FC<AdminLoginPageProps> = ({ onLoginSuccess }) => {
     };
 
     return (
-        <div className="min-h-screen flex items-center justify-center bg-black p-4 selection:bg-cyan-500/30">
-            {/* Background glow */}
-            <div className="fixed top-0 left-0 w-full h-full overflow-hidden pointer-events-none">
-                <div className="absolute top-[-10%] left-[-10%] w-[40%] h-[40%] bg-cyan-500/5 blur-[100px]" />
-                <div className="absolute bottom-[-10%] right-[-10%] w-[40%] h-[40%] bg-cyan-500/5 blur-[100px]" />
+        <div className="min-h-screen flex items-center justify-center bg-transparent p-4 selection:bg-[#449b96]/30 relative overflow-hidden">
+            {/* Background */}
+            <div className="fixed inset-0 z-[-1] pointer-events-none">
+                <ParticleBackground />
             </div>
 
-            <div className="bg-black w-full max-w-md rounded-2xl shadow-2xl overflow-hidden border border-cyan-900/20 ring-1 ring-cyan-900/10 relative z-10">
+            <div className="bg-black/60 backdrop-blur-xl w-full max-w-md rounded-2xl shadow-2xl overflow-hidden border border-[#449b96]/20 ring-1 ring-[#449b96]/10 relative z-10">
                 <div className="p-8 pb-6 text-center">
-                    <div className="w-16 h-16 bg-zinc-900 rounded-full flex items-center justify-center mx-auto mb-4 border border-cyan-900/30 shadow-[0_0_15px_rgba(6,182,212,0.1)]">
-                        <Shield className="w-8 h-8 text-cyan-500" />
+                    <div className="w-16 h-16 bg-zinc-900/50 rounded-full flex items-center justify-center mx-auto mb-4 border border-[#449b96]/30 shadow-[0_0_15px_rgba(68,155,150,0.1)]">
+                        <Shield className="w-8 h-8 text-[#449b96]" />
                     </div>
                     <h1 className="text-2xl font-bold text-white tracking-tight">Admin Access</h1>
                     <p className="text-slate-400 mt-2">Enter your secure credentials to continue</p>
@@ -58,12 +59,12 @@ const AdminLoginPage: React.FC<AdminLoginPageProps> = ({ onLoginSuccess }) => {
                         <div className="space-y-2">
                             <label className="text-sm font-medium text-slate-300">Admin Password</label>
                             <div className="relative">
-                                <Lock className="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-cyan-500" />
+                                <Lock className="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-[#449b96]" />
                                 <input
                                     type="password"
                                     value={password}
                                     onChange={(e) => setPassword(e.target.value)}
-                                    className="w-full pl-10 pr-4 py-3 bg-zinc-900 border border-cyan-900/30 rounded-lg focus:ring-1 focus:ring-cyan-500 focus:border-cyan-500 outline-none transition-all text-white placeholder-slate-600 hover:border-cyan-900/50"
+                                    className="w-full pl-10 pr-4 py-3 bg-zinc-900/50 border border-[#449b96]/30 rounded-lg focus:ring-1 focus:ring-[#449b96] focus:border-[#449b96] outline-none transition-all text-white placeholder-slate-600 hover:border-[#449b96]/50"
                                     placeholder="••••••••••••"
                                     required
                                 />
@@ -80,7 +81,7 @@ const AdminLoginPage: React.FC<AdminLoginPageProps> = ({ onLoginSuccess }) => {
                         <button
                             type="submit"
                             disabled={isLoading}
-                            className="w-full bg-cyan-600 hover:bg-cyan-500 text-white font-semibold py-3 rounded-xl transition-all duration-200 flex items-center justify-center gap-2 disabled:opacity-70 disabled:cursor-not-allowed shadow-[0_0_20px_rgba(8,145,178,0.3)] hover:shadow-[0_0_25px_rgba(8,145,178,0.5)]"
+                            className="w-full bg-[#449b96] hover:bg-[#357a76] text-white font-semibold py-3 rounded-xl transition-all duration-200 flex items-center justify-center gap-2 disabled:opacity-70 disabled:cursor-not-allowed shadow-[0_0_20px_rgba(68,155,150,0.3)] hover:shadow-[0_0_25px_rgba(68,155,150,0.5)]"
                         >
                             {isLoading ? 'Verifying...' : 'Access Dashboard'}
                             {!isLoading && <ArrowRight className="w-4 h-4" />}
@@ -88,7 +89,7 @@ const AdminLoginPage: React.FC<AdminLoginPageProps> = ({ onLoginSuccess }) => {
                     </form>
                 </div>
 
-                <div className="bg-zinc-950 p-4 text-center text-xs text-slate-500 border-t border-cyan-900/10">
+                <div className="bg-zinc-950/30 p-4 text-center text-xs text-slate-500 border-t border-[#449b96]/10">
                     NexDevs Secure Admin Panel • v1.0.0
                 </div>
             </div>

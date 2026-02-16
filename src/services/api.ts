@@ -2,8 +2,10 @@
  * API Service for Frontend-Backend Communication
  * Centralizes all API calls and error handling
  */
+import { encryptData, decryptData } from '../lib/encryption';
 
-const API_BASE_URL = import.meta.env.VITE_API_URL || 'http://localhost:3001/api';
+export const API_BASE_URL = import.meta.env.VITE_API_URL || 'http://localhost:5000/api';
+const BACKEND_API_KEY = import.meta.env.VITE_BACKEND_API_KEY;
 
 // Types for API responses
 export interface ApiResponse<T = any> {
@@ -46,7 +48,47 @@ const addRefreshSubscriber = (callback: (token: string) => void) => {
 };
 
 // Generic fetch wrapper with error handling and auto-refresh
-async function apiFetch<T>(
+/**
+ * Specialized fetch for streaming responses
+ */
+export async function apiStreamFetch(
+    endpoint: string,
+    options: RequestInit = {}
+): Promise<Response> {
+    const token = localStorage.getItem('auth_token');
+    const headers: HeadersInit = {
+        'Content-Type': 'application/json',
+        'x-api-key': BACKEND_API_KEY || '',
+        ...options.headers,
+    };
+
+    if (token) {
+        headers['Authorization'] = `Bearer ${token}`;
+    }
+
+    let fetchOptions = { ...options, headers };
+
+    // Encrypt request body if present
+    if (options.body && typeof options.body === 'string') {
+        try {
+            const encrypted = await encryptData(options.body);
+            fetchOptions.body = JSON.stringify(encrypted);
+        } catch (err) {
+            console.error('Encryption failed:', err);
+        }
+    }
+
+    const response = await fetch(`${API_BASE_URL}${endpoint}`, fetchOptions);
+
+    if (!response.ok) {
+        const errorData = await response.json().catch(() => ({}));
+        throw new Error(errorData.message || errorData.error || 'Streaming request failed');
+    }
+
+    return response;
+}
+
+export async function apiFetch<T>(
     endpoint: string,
     options: RequestInit = {},
     retry = true
@@ -56,6 +98,7 @@ async function apiFetch<T>(
 
         const headers: HeadersInit = {
             'Content-Type': 'application/json',
+            'x-api-key': BACKEND_API_KEY || '',
             ...options.headers,
         };
 
@@ -63,12 +106,30 @@ async function apiFetch<T>(
             headers['Authorization'] = `Bearer ${token}`;
         }
 
-        const response = await fetch(`${API_BASE_URL}${endpoint}`, {
-            ...options,
-            headers,
-        });
+        // Encrypt request body if present
+        let fetchOptions = { ...options, headers };
+        if (options.body && typeof options.body === 'string') {
+            try {
+                const encrypted = await encryptData(options.body);
+                fetchOptions.body = JSON.stringify(encrypted);
+            } catch (err) {
+                console.error('Encryption failed:', err);
+            }
+        }
 
-        const data = await response.json();
+        const response = await fetch(`${API_BASE_URL}${endpoint}`, fetchOptions);
+
+        let data = await response.json();
+
+        // Decrypt response body if encrypted
+        if (data.encryptedData && data.iv) {
+            try {
+                const decrypted = await decryptData(data.encryptedData, data.iv);
+                data = JSON.parse(decrypted);
+            } catch (err) {
+                console.error('Decryption failed:', err);
+            }
+        }
 
         // Handle 401 errors with token refresh
         if (response.status === 401 && retry) {
@@ -106,6 +167,24 @@ async function apiFetch<T>(
             return {
                 error: data.message || data.error || 'API request failed',
                 success: false,
+            };
+        }
+
+        // Standardize response: unwrap 'data' field if present from backend
+        if (data && typeof data === 'object' && data.success === true) {
+            if (data.data !== undefined) {
+                return {
+                    data: data.data,
+                    success: true,
+                    message: data.message
+                };
+            }
+            // If no .data but .success is true (like login), return the rest of the object as data
+            const { success, message, ...rest } = data;
+            return {
+                data: rest as unknown as T,
+                success: true,
+                message
             };
         }
 
@@ -196,6 +275,12 @@ export const authApi = {
         });
     },
 
+    async cancelPlan(): Promise<ApiResponse<any>> {
+        return apiFetch('/auth/cancel-plan', {
+            method: 'POST',
+        });
+    },
+
     async validate(): Promise<ApiResponse<{ valid: boolean; user: any }>> {
         return apiFetch('/auth/validate');
     },
@@ -225,9 +310,10 @@ export const supportApi = {
     async createRequest(data: {
         name: string;
         issue: string;
-        specialist_id: string;
+        specialistId: string;
+        email: string;
     }): Promise<ApiResponse<{ message: string }>> {
-        return apiFetch('/forms/support', {
+        return apiFetch('/support/request', {
             method: 'POST',
             body: JSON.stringify(data),
         });
@@ -363,9 +449,24 @@ export const settingsApi = {
             body: JSON.stringify(data),
         });
     },
+};
 
-    async cancelPlan(): Promise<ApiResponse<any>> {
-        return apiFetch('/auth/cancel-plan', {
+/**
+ * Notifications API
+ */
+export const notificationApi = {
+    async getNotifications(): Promise<ApiResponse<any[]>> {
+        return apiFetch('/notifications');
+    },
+
+    async markAsRead(id: string): Promise<ApiResponse<any>> {
+        return apiFetch(`/notifications/${id}/read`, {
+            method: 'PATCH',
+        });
+    },
+
+    async markAllAsRead(): Promise<ApiResponse<any>> {
+        return apiFetch('/notifications/read-all', {
             method: 'POST',
         });
     },
@@ -396,6 +497,51 @@ export const adminApi = {
     },
 };
 
+/**
+ * N8n Integration API
+ */
+export const n8nApi = {
+    /**
+     * Proxy a webhook call to n8n (fixes CORS)
+     */
+    async triggerWebhook(data: {
+        webhookUrl: string;
+        agentId: string;
+        userInput?: string;
+        method?: 'GET' | 'POST';
+        payload?: any;
+    }): Promise<ApiResponse<{ runId: string; message: string }>> {
+        return apiFetch('/n8n-proxy/trigger', {
+            method: 'POST',
+            body: JSON.stringify(data),
+        });
+    },
+
+    /**
+     * Test webhook connection
+     */
+    async testWebhook(webhookUrl: string): Promise<ApiResponse<{ message: string; latency: number }>> {
+        return apiFetch('/n8n-proxy/test', {
+            method: 'POST',
+            body: JSON.stringify({ webhookUrl }),
+        });
+    },
+
+    /**
+     * Get logs for a specific run
+     */
+    async getLogs(runId: string): Promise<ApiResponse<{ logs: any[] }>> {
+        return apiFetch(`/n8n-logs/${runId}`);
+    },
+
+    /**
+     * Poll for new logs (used by terminal)
+     */
+    async pollLogs(runId: string): Promise<ApiResponse<{ logs: any[] }>> {
+        return apiFetch(`/n8n-logs/${runId}`);
+    },
+};
+
 // Export default API object
 export default {
     auth: authApi,
@@ -405,4 +551,6 @@ export default {
     agents: agentsApi,
     admin: adminApi,
     settings: settingsApi,
+    n8n: n8nApi,
+    notifications: notificationApi,
 };

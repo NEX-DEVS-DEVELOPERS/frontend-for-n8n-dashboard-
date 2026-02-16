@@ -4,8 +4,13 @@
 <head>
     <meta charset="UTF-8" />
     <link rel="icon" type="image/svg+xml" href="/n8n-logo.svg" />
-    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>n8n Agent Workflow Dashboard</title>
+    <meta name="viewport"
+        content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover" />
+    <meta name="theme-color" content="#050505" />
+    <meta name="apple-mobile-web-app-capable" content="yes" />
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
+    <link rel="apple-touch-icon" href="/n8n-logo.svg" />
+    <title>NEX-DEVS N8N DASHBOARD</title>
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
@@ -78,7 +83,6 @@
             --border: 100 116 139;
             --input: 15 23 42;
             --ring: 13 148 136;
-            --chatbot-bg: #ffffff;
         }
 
         .dark {
@@ -109,7 +113,7 @@
             border-radius: 50%;
             filter: blur(40px);
             opacity: 0.6;
-            will-change: auto;
+            will-change: transform;
         }
 
         .shape-1 {
@@ -117,9 +121,8 @@
             height: 600px;
             top: -100px;
             left: -100px;
-            background: radial-gradient(circle, #48a8a3, transparent 60%);
+            background: radial-gradient(circle, #48a8a3, transparent 50%);
             animation: move-aurora-1 25s ease-in-out infinite;
-            will-change: transform, opacity;
         }
 
         .shape-2 {
@@ -127,7 +130,7 @@
             height: 500px;
             top: 50vh;
             left: 60vw;
-            background: radial-gradient(circle, #1e5f5c, transparent 60%);
+            background: radial-gradient(circle, #1e5f5c, transparent 50%);
             animation: move-aurora-2 30s ease-in-out infinite;
         }
 
@@ -136,32 +139,75 @@
             height: 350px;
             bottom: 5vh;
             left: 5vw;
-            background: radial-gradient(circle, #0077c2, transparent 60%);
+            background: radial-gradient(circle, #0077c2, transparent 50%);
             animation: move-aurora-3 20s ease-in-out infinite;
+        }
+
+        @keyframes move-aurora-1 {
+
+            0%,
+            100% {
+                transform: translate(0, 0) scale(1);
+            }
+
+            33% {
+                transform: translate(10vw, 15vh) scale(1.1);
+            }
+
+            66% {
+                transform: translate(-5vw, 10vh) scale(0.9);
+            }
+        }
+
+        @keyframes move-aurora-2 {
+
+            0%,
+            100% {
+                transform: translate(0, 0) scale(1.1);
+            }
+
+            33% {
+                transform: translate(-10vw, -15vh) scale(0.9);
+            }
+
+            66% {
+                transform: translate(5vw, -10vh) scale(1);
+            }
+        }
+
+        @keyframes move-aurora-3 {
+
+            0%,
+            100% {
+                transform: translate(0, 0);
+            }
+
+            50% {
+                transform: translate(15vw, -5vh);
+            }
         }
 
         /* Native Scroll - Performance Optimized */
         html {
             scroll-behavior: smooth;
-            /* Enable native smooth scrolling */
             overflow-x: hidden;
-            overflow-y: scroll;
-            /* Force vertical scrollbar to prevent layout shift */
+            overflow-y: auto;
+            height: 100%;
         }
 
         body {
             overflow-x: hidden;
-            min-height: 100vh;
+            min-height: 100%;
             position: relative;
-            /* Optimize painting */
             -webkit-font-smoothing: antialiased;
             text-rendering: optimizeLegibility;
+            overscroll-behavior-y: none;
+            touch-action: pan-y;
         }
 
-        /* Performance Hints */
-        * {
-            -webkit-font-smoothing: antialiased;
-            -moz-osx-font-smoothing: grayscale;
+        /* Prevent jitter on iOS */
+        #root {
+            -webkit-overflow-scrolling: touch;
         }
 
         /* Scrollbar */
@@ -183,75 +229,6 @@
             background: rgba(156, 163, 175, 0.7);
         }
 
-        html:not(.dark) ::-webkit-scrollbar-thumb {
-            background: rgba(100, 116, 139, 0.3);
-        }
-
-        html:not(.dark) ::-webkit-scrollbar-thumb:hover {
-            background: rgba(100, 116, 139, 0.5);
-        }
-
-        /* Checkmark Animation */
-        .checkmark-circle {
-            stroke-dasharray: 166;
-            stroke-dashoffset: 166;
-            stroke-width: 2;
-            stroke-miterlimit: 10;
-            stroke: #48a8a3;
-            fill: none;
-            animation: stroke-draw-circle 0.6s cubic-bezier(0.65, 0, 0.45, 1) forwards;
-        }
-
-        .checkmark-check {
-            transform-origin: 50% 50%;
-            stroke-dasharray: 48;
-            stroke-dashoffset: 48;
-            stroke-width: 3;
-            stroke-linecap: round;
-            stroke: #48a8a3;
-            animation: stroke-draw-check 0.3s cubic-bezier(0.65, 0, 0.45, 1) 0.6s forwards;
-        }
-
-        @keyframes stroke-draw-circle {
-            to {
-                stroke-dashoffset: 0;
-            }
-        }
-
-        @keyframes stroke-draw-check {
-            to {
-                stroke-dashoffset: 0;
-            }
-        }
-
-        /* Typing Indicator */
-        @keyframes typing-dot-pulse {
-
-            0%,
-            80%,
-            100% {
-                transform: scale(0);
-                opacity: 0;
-            }
-
-            40% {
-                transform: scale(1.0);
-                opacity: 1;
-            }
-        }
-
-        .typing-dot {
-            animation: typing-dot-pulse 1.4s infinite ease-in-out both;
-        }
-
-        .typing-dot:nth-child(1) {
-            animation-delay: -0.32s;
-        }
-
-        .typing-dot:nth-child(2) {
-            animation-delay: -0.16s;
-        }
-
         /* View Transitions */
         ::view-transition-old(root),
         ::view-transition-new(root) {
@@ -259,30 +236,7 @@
             mix-blend-mode: normal;
             display: block;
         }
-
-        ::view-transition-new(root) {
-            z-index: 9999;
-        }
-
-        ::view-transition-old(root) {
-            z-index: 1;
-        }
-
-        ::view-transition-group(root) {
-            pointer-events: none;
-        }
     </style>
-    <script type="importmap">
-{
-  "imports": {
-    "react/": "https://aistudiocdn.com/react@^19.2.0/",
-    "react": "https://aistudiocdn.com/react@^19.2.0",
-    "react-dom/": "https://aistudiocdn.com/react-dom@^19.2.0/",
-    "@google/genai": "https://aistudiocdn.com/@google/genai@^1.29.1",
-    "gsap": "https://aistudiocdn.com/gsap@^3.13.0"
-  }
-}
-</script>
 </head>
 
 <body

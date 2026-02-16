@@ -169,61 +169,6 @@ const Chatbot: React.FC<ChatbotProps> = ({ onClose, isCentered, onToggleCenter, 
         }
     }, []);
 
-    const streamResponse = useCallback(async (fullText: string) => {
-        const targetSessionId = currentSessionIdRef.current;
-        setIsStreaming(true);
-        streamingRef.current = true;
-
-        setMessages(prev => [...prev, { author: MessageAuthor.Assistant, text: '' }]);
-
-        const chars = fullText.split('');
-        let currentIndex = 0;
-        let currentText = '';
-
-        const animate = () => {
-            if (!streamingRef.current || currentSessionIdRef.current !== targetSessionId) {
-                setIsStreaming(false);
-                return;
-            }
-
-            if (currentIndex < chars.length) {
-                const charsToAdd = Math.min(3, chars.length - currentIndex);
-                currentText += chars.slice(currentIndex, currentIndex + charsToAdd).join('');
-                currentIndex += charsToAdd;
-
-                setMessages(prev => {
-                    const newMessages = [...prev];
-                    if (newMessages.length > 0) {
-                        newMessages[newMessages.length - 1] = {
-                            ...newMessages[newMessages.length - 1],
-                            text: currentText
-                        };
-                    }
-                    return newMessages;
-                });
-
-                requestAnimationFrame(animate);
-            } else {
-                setMessages(prev => {
-                    const newMessages = [...prev];
-                    if (newMessages.length > 0) {
-                        newMessages[newMessages.length - 1] = {
-                            ...newMessages[newMessages.length - 1],
-                            text: fullText
-                        };
-                    }
-                    updateCurrentSession(newMessages);
-                    return newMessages;
-                });
-
-                setIsStreaming(false);
-                streamingRef.current = false;
-            }
-        };
-
-        requestAnimationFrame(animate);
-    }, [updateCurrentSession]);
-
     const sendMessage = async (messageText: string) => {
         if (isLoading || isStreaming || !messageText.trim()) return;
 
@@ -239,17 +184,58 @@ const Chatbot: React.FC<ChatbotProps> = ({ onClose, isCentered, onToggleCenter, 
             const currentSession = sessions.find(s => s.id === currentSessionId);
             const sessionIdToUse = backendSessionId || currentSession?.backendSessionId;
 
-            const responseText = await sendMessageToBackend(
+            const response = await sendMessageToBackend(
                 messageText,
-                newMessages,
+                messages, // Send existing history
                 sessionIdToUse || undefined
             );
+
             setIsLoading(false);
-            await streamResponse(responseText);
+            setIsStreaming(true);
+            streamingRef.current = true;
+
+            // Add Assistant message placeholder
+            setMessages(prev => [...prev, { author: MessageAuthor.Assistant, text: '' }]);
+
+            let fullAssistantText = '';
+
+            if (response.body) {
+                const reader = response.body.getReader();
+                const decoder = new TextDecoder();
+
+                while (true) {
+                    const { done, value } = await reader.read();
+                    if (done) break;
+
+                    // Decode the plain text chunk
+                    const chunk = decoder.decode(value, { stream: true });
+                    fullAssistantText += chunk;
+
+                    // Update the message with the accumulated text
+                    setMessages(prev => {
+                        const updated = [...prev];
+                        if (updated.length > 0) {
+                            updated[updated.length - 1] = {
+                                ...updated[updated.length - 1],
+                                text: fullAssistantText
+                            };
+                        }
+                        return updated;
+                    });
+                }
+            }
+
+            // Finalize session
+            setMessages(prev => {
+                updateCurrentSession(prev);
+                return prev;
+            });
+            setIsStreaming(false);
 
         } catch (error) {
             console.error("Chat Error:", error);
             setIsLoading(false);
+            setIsStreaming(false);
             const errorMessage: ChatMessage = {
                 author: MessageAuthor.Assistant,
                 text: "I'm having trouble connecting. Please try again."

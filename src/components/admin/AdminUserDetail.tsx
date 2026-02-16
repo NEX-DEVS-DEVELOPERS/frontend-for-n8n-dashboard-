@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { ArrowLeft, User, Mail, Calendar, Shield, Activity, Save, Clock, MessageSquare, GitPullRequest } from 'lucide-react';
+import { API_BASE_URL } from '../../services/api';
 
 interface UserDetail {
     id: string;
@@ -43,7 +44,7 @@ const AdminUserDetail: React.FC<AdminUserDetailProps> = ({ userId, adminPassword
             const pwd = adminPassword || (session ? JSON.parse(session).password : '');
 
             // Fetch user basic info
-            const userResponse = await fetch(`http://localhost:3001/api/admin/users/${userId}`, {
+            const userResponse = await fetch(`${API_BASE_URL}/admin/users/${userId}`, {
                 headers: { 'x-admin-password': pwd }
             });
             const userData = await userResponse.json();
@@ -53,7 +54,7 @@ const AdminUserDetail: React.FC<AdminUserDetailProps> = ({ userId, adminPassword
             }
 
             // Fetch dashboard data
-            const dashboardResponse = await fetch(`http://localhost:3001/api/admin/users/${userId}/dashboard`, {
+            const dashboardResponse = await fetch(`${API_BASE_URL}/admin/users/${userId}/dashboard`, {
                 headers: { 'x-admin-password': pwd }
             });
             const dashData = await dashboardResponse.json();
@@ -76,7 +77,7 @@ const AdminUserDetail: React.FC<AdminUserDetailProps> = ({ userId, adminPassword
             const session = localStorage.getItem('nexdev_admin_session');
             const pwd = adminPassword || (session ? JSON.parse(session).password : '');
 
-            const response = await fetch(`http://localhost:3001/api/admin/users/${userId}/dashboard`, {
+            const response = await fetch(`${API_BASE_URL}/admin/users/${userId}/dashboard`, {
                 method: 'POST',
                 headers: {
                     'Content-Type': 'application/json',

@@ -306,19 +306,43 @@ const UserDashboardPopup: React.FC<UserDashboardPopupProps> = ({
                 <div className="w-60 bg-background/30 border-r border-border/20 p-4 flex flex-col">
                     {/* User Info Header */}
                     <div className="mb-6 pb-4 border-b border-border/20">
-                        <div className="flex items-center gap-3 mb-3">
-                            <div className="h-10 w-10 rounded-full bg-primary/10 flex items-center justify-center border border-primary/20">
-                                <UserIcon className="h-5 w-5 text-primary" />
+                        <div className="flex items-center gap-3 mb-4">
+                            <div className="h-12 w-12 rounded-xl bg-primary/10 flex items-center justify-center border border-primary/20 overflow-hidden shadow-inner relative group">
+                                {userData?.name ? (
+                                    <div className="w-full h-full flex items-center justify-center bg-gradient-to-br from-primary/20 to-primary/5 text-primary font-bold text-lg select-none">
+                                        {userData.name.charAt(0).toUpperCase()}
+                                    </div>
+                                ) : (
+                                    <UserIcon className="h-6 w-6 text-primary" />
+                                )}
+                                <div className="absolute inset-0 bg-black/40 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity cursor-pointer">
+                                    <div className="text-[8px] font-bold text-white uppercase tracking-tighter">Edit</div>
+                                </div>
                             </div>
                             <div className="flex-1 min-w-0">
                                 <h2 className="text-sm font-bold text-foreground leading-tight truncate">
                                     {userData?.name}
                                 </h2>
-                                <p className="text-[10px] text-muted-foreground truncate">{userData?.email}</p>
+                                <p className="text-[10px] text-muted-foreground truncate mb-1">{userData?.email}</p>
+                                {agents.length > 0 ? (
+                                    <div className="flex items-center gap-1.5">
+                                        <div className="flex items-center justify-center h-4 w-4 rounded-full bg-green-500/10 border border-green-500/20">
+                                            <div className="h-1.5 w-1.5 rounded-full bg-green-500 animate-pulse" />
+                                        </div>
+                                        <span className="text-[9px] font-bold text-green-500 uppercase tracking-tight">Agent Configured</span>
+                                    </div>
+                                ) : (
+                                    <div className="flex items-center gap-1.5 opacity-50">
+                                        <div className="flex items-center justify-center h-4 w-4 rounded-full bg-muted/10 border border-border/20">
+                                            <div className="h-1.5 w-1.5 rounded-full bg-muted-foreground" />
+                                        </div>
+                                        <span className="text-[9px] font-bold text-muted-foreground uppercase tracking-tight">No Agents</span>
+                                    </div>
+                                )}
                             </div>
                         </div>
                         <div className="flex items-center justify-between mb-2">
-                            <span className="text-[10px] text-muted-foreground">Current Plan</span>
+                            <span className="text-[10px] text-muted-foreground">Subscription</span>
                             <span className="px-2 py-0.5 rounded-full bg-primary/10 text-primary text-[10px] font-bold uppercase border border-primary/20">
                                 {userPlan}
                             </span>

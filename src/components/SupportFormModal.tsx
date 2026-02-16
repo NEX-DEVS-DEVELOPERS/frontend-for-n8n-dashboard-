@@ -3,6 +3,7 @@ import React, { useEffect, useRef, useCallback, useState } from 'react';
 import gsap from 'gsap';
 import { XIcon, ChatBubbleIcon, AnimatedCheckIcon } from './icons';
 import { Button, Input, Label, Textarea } from './ui';
+import { supportApi } from '../services/api';
 
 const supportTeam = [
   { id: 'ali', name: 'Ali Hasnaat', expertise: 'Expert in frontend, backend, and overall website functionality.' },
@@ -117,14 +118,36 @@ const SupportFormModal: React.FC<SupportFormModalProps> = ({
     setTimeout(onOpenChatbot, 300);
   };
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (hasReachedLimit || isOnCooldown) return;
-    onAddSupportRequest();
-    setIsSent(true);
-    setTimeout(() => {
-      handleClose();
-    }, 3000); // Give user more time to read the confirmation
+
+    try {
+      const nameInput = (document.getElementById('support-name') as HTMLInputElement).value;
+      const issueInput = (document.getElementById('support-issue') as HTMLTextAreaElement).value;
+
+      // Get user email from local storage or context if possible, otherwise use placeholder or prompt (for now assumes local storage)
+      const user = JSON.parse(localStorage.getItem('user_data') || '{}');
+      const email = user.email || '';
+
+      if (!selectedSpecialistId) return;
+
+      await supportApi.createRequest({
+        name: nameInput,
+        issue: issueInput,
+        specialistId: selectedSpecialistId,
+        email: email
+      });
+
+      onAddSupportRequest();
+      setIsSent(true);
+      setTimeout(() => {
+        handleClose();
+      }, 3000);
+    } catch (error) {
+      console.error("Failed to send support request", error);
+      // Optional: show error state
+    }
   };
 
   const hasReachedLimit = requestCount >= requestLimit;

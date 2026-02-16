@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { Search, Filter, MoreVertical, MessageSquare, GitPullRequest, Clock } from 'lucide-react';
+import { API_BASE_URL } from '../../services/api';
 
 interface User {
     id: string;
@@ -33,7 +34,7 @@ const AdminAllUsers: React.FC<AdminAllUsersProps> = ({ adminPassword }) => {
             const session = localStorage.getItem('nexdev_admin_session');
             const pwd = adminPassword || (session ? JSON.parse(session).password : '');
 
-            const response = await fetch('http://localhost:3001/api/admin/users-list', {
+            const response = await fetch(`${API_BASE_URL}/admin/users-list`, {
                 headers: {
                     'x-admin-password': pwd
                 }
@@ -63,51 +64,51 @@ const AdminAllUsers: React.FC<AdminAllUsersProps> = ({ adminPassword }) => {
 
                 <div className="flex flex-col sm:flex-row gap-3">
                     <div className="relative">
-                        <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-cyan-500" />
+                        <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-[#449b96]" />
                         <input
                             type="text"
                             placeholder="Search users..."
                             value={searchTerm}
                             onChange={(e) => setSearchTerm(e.target.value)}
-                            className="pl-9 pr-4 py-2 bg-black border border-cyan-900/30 rounded-lg focus:ring-1 focus:ring-cyan-500 outline-none w-full sm:w-64 text-slate-200 placeholder-slate-600 shadow-[0_0_10px_rgba(6,182,212,0.05)]"
+                            className="pl-9 pr-4 py-2 bg-black/40 backdrop-blur-md border border-[#449b96]/30 rounded-lg focus:ring-1 focus:ring-[#449b96] outline-none w-full sm:w-64 text-slate-200 placeholder-slate-600 shadow-[0_0_10px_rgba(68,155,150,0.05)]"
                         />
                     </div>
 
                     <div className="relative">
-                        <Filter className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-cyan-500" />
+                        <Filter className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-[#449b96]" />
                         <select
                             value={filterPlan}
                             onChange={(e) => setFilterPlan(e.target.value)}
-                            className="pl-9 pr-8 py-2 bg-black border border-cyan-900/30 rounded-lg focus:ring-1 focus:ring-cyan-500 outline-none appearance-none text-slate-200 cursor-pointer shadow-[0_0_10px_rgba(6,182,212,0.05)]"
+                            className="pl-9 pr-8 py-2 bg-black/40 backdrop-blur-md border border-[#449b96]/30 rounded-lg focus:ring-1 focus:ring-[#449b96] outline-none appearance-none text-slate-200 cursor-pointer shadow-[0_0_10px_rgba(68,155,150,0.05)]"
                         >
-                            <option value="all">All Plans</option>
-                            <option value="free">Free</option>
-                            <option value="pro">Pro</option>
-                            <option value="enterprise">Enterprise</option>
+                            <option value="all" className="bg-black text-slate-200">All Plans</option>
+                            <option value="free" className="bg-black text-slate-200">Free</option>
+                            <option value="pro" className="bg-black text-slate-200">Pro</option>
+                            <option value="enterprise" className="bg-black text-slate-200">Enterprise</option>
                         </select>
                     </div>
                 </div>
             </div>
 
-            <div className="bg-black rounded-xl shadow-lg border border-cyan-900/20 overflow-hidden ring-1 ring-cyan-900/10">
+            <div className="bg-black/40 backdrop-blur-md rounded-xl shadow-lg border border-[#449b96]/20 overflow-hidden ring-1 ring-[#449b96]/10">
                 <div className="overflow-x-auto">
                     <table className="w-full text-left">
                         <thead>
-                            <tr className="bg-zinc-900/50 border-b border-cyan-900/20">
-                                <th className="px-6 py-4 text-xs font-semibold text-cyan-400 uppercase tracking-wider">User</th>
-                                <th className="px-6 py-4 text-xs font-semibold text-cyan-400 uppercase tracking-wider">Plan</th>
-                                <th className="px-6 py-4 text-xs font-semibold text-cyan-400 uppercase tracking-wider">Requests</th>
-                                <th className="px-6 py-4 text-xs font-semibold text-cyan-400 uppercase tracking-wider">Joined</th>
-                                <th className="px-6 py-4 text-xs font-semibold text-cyan-400 uppercase tracking-wider">Last Activity</th>
-                                <th className="px-6 py-4 text-xs font-semibold text-cyan-400 uppercase tracking-wider">Actions</th>
+                            <tr className="bg-white/5 border-b border-[#449b96]/20">
+                                <th className="px-6 py-4 text-xs font-semibold text-[#449b96] uppercase tracking-wider">User</th>
+                                <th className="px-6 py-4 text-xs font-semibold text-[#449b96] uppercase tracking-wider">Plan</th>
+                                <th className="px-6 py-4 text-xs font-semibold text-[#449b96] uppercase tracking-wider">Requests</th>
+                                <th className="px-6 py-4 text-xs font-semibold text-[#449b96] uppercase tracking-wider">Joined</th>
+                                <th className="px-6 py-4 text-xs font-semibold text-[#449b96] uppercase tracking-wider">Last Activity</th>
+                                <th className="px-6 py-4 text-xs font-semibold text-[#449b96] uppercase tracking-wider">Actions</th>
                             </tr>
                         </thead>
-                        <tbody className="divide-y divide-cyan-900/10">
+                        <tbody className="divide-y divide-[#449b96]/10">
                             {isLoading ? (
                                 <tr>
                                     <td colSpan={6} className="px-6 py-8 text-center text-slate-500">
                                         <div className="flex justify-center items-center gap-2">
-                                            <div className="w-4 h-4 border-2 border-cyan-500 border-t-transparent rounded-full animate-spin"></div>
+                                            <div className="w-4 h-4 border-2 border-[#449b96] border-t-transparent rounded-full animate-spin"></div>
                                             Loading users...
                                         </div>
                                     </td>
@@ -118,14 +119,14 @@ const AdminAllUsers: React.FC<AdminAllUsersProps> = ({ adminPassword }) => {
                                 </tr>
                             ) : (
                                 filteredUsers.map((user) => (
-                                    <tr key={user.id} className="hover:bg-cyan-950/10 transition-colors group">
+                                    <tr key={user.id} className="hover:bg-[#449b96]/10 transition-colors group">
                                         <td className="px-6 py-4">
                                             <div className="flex items-center gap-3">
-                                                <div className="w-8 h-8 rounded-full bg-zinc-900 flex items-center justify-center text-cyan-500 font-medium text-sm border border-cyan-900/30 group-hover:border-cyan-500/50 transition-colors">
+                                                <div className="w-8 h-8 rounded-full bg-zinc-900/50 flex items-center justify-center text-[#449b96] font-medium text-sm border border-[#449b96]/30 group-hover:border-[#449b96]/50 transition-colors">
                                                     {user.username.charAt(0).toUpperCase()}
                                                 </div>
                                                 <div>
-                                                    <p className="text-sm font-medium text-slate-200 group-hover:text-cyan-400 transition-colors">{user.username}</p>
+                                                    <p className="text-sm font-medium text-slate-200 group-hover:text-[#449b96] transition-colors">{user.username}</p>
                                                     <p className="text-xs text-slate-500">{user.email}</p>
                                                 </div>
                                             </div>
@@ -133,8 +134,8 @@ const AdminAllUsers: React.FC<AdminAllUsersProps> = ({ adminPassword }) => {
                                         <td className="px-6 py-4">
                                             <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium capitalize border
                                                 ${user.plan_tier === 'enterprise' ? 'bg-purple-950/30 text-purple-400 border-purple-900/50' :
-                                                    user.plan_tier === 'pro' ? 'bg-cyan-950/30 text-cyan-400 border-cyan-900/50' :
-                                                        'bg-zinc-800 text-slate-400 border-zinc-700'}`}>
+                                                    user.plan_tier === 'pro' ? 'bg-[#449b96]/20 text-[#449b96] border-[#449b96]/50' :
+                                                        'bg-zinc-800/50 text-slate-400 border-zinc-700'}`}>
                                                 {user.plan_tier}
                                             </span>
                                         </td>
@@ -169,7 +170,7 @@ const AdminAllUsers: React.FC<AdminAllUsersProps> = ({ adminPassword }) => {
                                                     window.history.pushState({}, '', `/nexdev/users/${user.id}`);
                                                     window.dispatchEvent(new PopStateEvent('popstate'));
                                                 }}
-                                                className="text-slate-500 hover:text-cyan-400 transition-colors p-2 hover:bg-cyan-950/30 rounded-lg"
+                                                className="text-slate-500 hover:text-[#449b96] transition-colors p-2 hover:bg-[#449b96]/20 rounded-lg"
                                             >
                                                 <MoreVertical className="w-5 h-5" />
                                             </button>

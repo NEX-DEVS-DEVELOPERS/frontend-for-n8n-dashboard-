@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { Search, Filter, GitPullRequest, CheckCircle, Clock, AlertCircle } from 'lucide-react';
+import { API_BASE_URL } from '../../services/api';
 
 interface ChangeRequest {
     id: string;
@@ -32,7 +33,7 @@ const AdminChangeRequests: React.FC<AdminChangeRequestsProps> = ({ adminPassword
             const session = localStorage.getItem('nexdev_admin_session');
             const pwd = adminPassword || (session ? JSON.parse(session).password : '');
 
-            const response = await fetch('http://localhost:3001/api/admin/change-requests', {
+            const response = await fetch(`${API_BASE_URL}/admin/change-requests`, {
                 headers: {
                     'x-admin-password': pwd
                 }
@@ -53,7 +54,7 @@ const AdminChangeRequests: React.FC<AdminChangeRequestsProps> = ({ adminPassword
             const session = localStorage.getItem('nexdev_admin_session');
             const pwd = adminPassword || (session ? JSON.parse(session).password : '');
 
-            const response = await fetch(`http://localhost:3001/api/admin/change-requests/${requestId}/complete`, {
+            const response = await fetch(`${API_BASE_URL}/admin/change-requests/${requestId}/complete`, {
                 method: 'POST',
                 headers: {
                     'x-admin-password': pwd
@@ -85,49 +86,49 @@ const AdminChangeRequests: React.FC<AdminChangeRequestsProps> = ({ adminPassword
 
                 <div className="flex flex-col sm:flex-row gap-3">
                     <div className="relative">
-                        <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-cyan-500" />
+                        <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-[#449b96]" />
                         <input
                             type="text"
                             placeholder="Search requests..."
                             value={searchTerm}
                             onChange={(e) => setSearchTerm(e.target.value)}
-                            className="pl-9 pr-4 py-2 bg-black border border-cyan-900/30 rounded-lg focus:ring-1 focus:ring-cyan-500 outline-none w-full sm:w-64 text-slate-200 placeholder-slate-600 shadow-[0_0_10px_rgba(6,182,212,0.05)]"
+                            className="pl-9 pr-4 py-2 bg-black/40 backdrop-blur-md border border-[#449b96]/30 rounded-lg focus:ring-1 focus:ring-[#449b96] outline-none w-full sm:w-64 text-slate-200 placeholder-slate-600 shadow-[0_0_10px_rgba(68,155,150,0.05)]"
                         />
                     </div>
 
                     <div className="relative">
-                        <Filter className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-cyan-500" />
+                        <Filter className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-[#449b96]" />
                         <select
                             value={filterStatus}
                             onChange={(e) => setFilterStatus(e.target.value)}
-                            className="pl-9 pr-8 py-2 bg-black border border-cyan-900/30 rounded-lg focus:ring-1 focus:ring-cyan-500 outline-none appearance-none text-slate-200 cursor-pointer shadow-[0_0_10px_rgba(6,182,212,0.05)]"
+                            className="pl-9 pr-8 py-2 bg-black/40 backdrop-blur-md border border-[#449b96]/30 rounded-lg focus:ring-1 focus:ring-[#449b96] outline-none appearance-none text-slate-200 cursor-pointer shadow-[0_0_10px_rgba(68,155,150,0.05)]"
                         >
-                            <option value="all">All Status</option>
-                            <option value="pending">Pending</option>
-                            <option value="completed">Completed</option>
+                            <option value="all" className="bg-black text-slate-200">All Status</option>
+                            <option value="pending" className="bg-black text-slate-200">Pending</option>
+                            <option value="completed" className="bg-black text-slate-200">Completed</option>
                         </select>
                     </div>
                 </div>
             </div>
 
-            <div className="bg-black rounded-xl shadow-lg border border-cyan-900/20 overflow-hidden ring-1 ring-cyan-900/10">
+            <div className="bg-black/40 backdrop-blur-md rounded-xl shadow-lg border border-[#449b96]/20 overflow-hidden ring-1 ring-[#449b96]/10">
                 <div className="overflow-x-auto">
                     <table className="w-full text-left">
                         <thead>
-                            <tr className="bg-zinc-900/50 border-b border-cyan-900/20">
-                                <th className="px-6 py-4 text-xs font-semibold text-cyan-400 uppercase tracking-wider">User</th>
-                                <th className="px-6 py-4 text-xs font-semibold text-cyan-400 uppercase tracking-wider">Type</th>
-                                <th className="px-6 py-4 text-xs font-semibold text-cyan-400 uppercase tracking-wider">Status</th>
-                                <th className="px-6 py-4 text-xs font-semibold text-cyan-400 uppercase tracking-wider">Submitted</th>
-                                <th className="px-6 py-4 text-xs font-semibold text-cyan-400 uppercase tracking-wider">Actions</th>
+                            <tr className="bg-white/5 border-b border-[#449b96]/20">
+                                <th className="px-6 py-4 text-xs font-semibold text-[#449b96] uppercase tracking-wider">User</th>
+                                <th className="px-6 py-4 text-xs font-semibold text-[#449b96] uppercase tracking-wider">Type</th>
+                                <th className="px-6 py-4 text-xs font-semibold text-[#449b96] uppercase tracking-wider">Status</th>
+                                <th className="px-6 py-4 text-xs font-semibold text-[#449b96] uppercase tracking-wider">Submitted</th>
+                                <th className="px-6 py-4 text-xs font-semibold text-[#449b96] uppercase tracking-wider">Actions</th>
                             </tr>
                         </thead>
-                        <tbody className="divide-y divide-cyan-900/10">
+                        <tbody className="divide-y divide-[#449b96]/10">
                             {isLoading ? (
                                 <tr>
                                     <td colSpan={5} className="px-6 py-8 text-center text-slate-500">
                                         <div className="flex justify-center items-center gap-2">
-                                            <div className="w-4 h-4 border-2 border-cyan-500 border-t-transparent rounded-full animate-spin"></div>
+                                            <div className="w-4 h-4 border-2 border-[#449b96] border-t-transparent rounded-full animate-spin"></div>
                                             Loading requests...
                                         </div>
                                     </td>
@@ -138,14 +139,14 @@ const AdminChangeRequests: React.FC<AdminChangeRequestsProps> = ({ adminPassword
                                 </tr>
                             ) : (
                                 filteredRequests.map((req) => (
-                                    <tr key={req.id} className="hover:bg-cyan-950/10 transition-colors group">
+                                    <tr key={req.id} className="hover:bg-[#449b96]/10 transition-colors group">
                                         <td className="px-6 py-4">
                                             <div className="flex items-center gap-3">
-                                                <div className="w-8 h-8 rounded-full bg-zinc-900 flex items-center justify-center text-cyan-500 font-medium text-sm border border-cyan-900/30 group-hover:border-cyan-500/50 transition-colors">
+                                                <div className="w-8 h-8 rounded-full bg-zinc-900/50 flex items-center justify-center text-[#449b96] font-medium text-sm border border-[#449b96]/30 group-hover:border-[#449b96]/50 transition-colors">
                                                     {req.username.charAt(0).toUpperCase()}
                                                 </div>
                                                 <div>
-                                                    <p className="text-sm font-medium text-slate-200 group-hover:text-cyan-400 transition-colors">{req.username}</p>
+                                                    <p className="text-sm font-medium text-slate-200 group-hover:text-[#449b96] transition-colors">{req.username}</p>
                                                     <p className="text-xs text-slate-500">{req.email}</p>
                                                 </div>
                                             </div>
@@ -175,7 +176,7 @@ const AdminChangeRequests: React.FC<AdminChangeRequestsProps> = ({ adminPassword
                                             {req.status === 'pending' && (
                                                 <button
                                                     onClick={() => handleMarkComplete(req.id)}
-                                                    className="text-xs font-medium bg-cyan-950/30 text-cyan-400 border border-cyan-900/50 px-3 py-1.5 rounded-lg hover:bg-cyan-900/50 transition-colors"
+                                                    className="text-xs font-medium bg-[#449b96]/20 text-[#449b96] border border-[#449b96]/50 px-3 py-1.5 rounded-lg hover:bg-[#449b96]/40 transition-colors"
                                                 >
                                                     Mark Complete
                                                 </button>

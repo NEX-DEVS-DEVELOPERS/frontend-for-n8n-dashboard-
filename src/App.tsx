@@ -20,9 +20,12 @@ import UserDashboardPopup from './components/UserDashboardPopup';
 import UserManagementPage from './components/UserManagementPage';
 import AdminApp from './components/admin/AdminApp';
 import { io } from 'socket.io-client';
-import { authApi } from './services/api';
+import NotificationDropdown, { Notification } from './components/NotificationDropdown';
+import { authApi, n8nApi, agentsApi, notificationApi, dashboardApi } from './services/api';
+import { paymentApi, Product } from './services/paymentApi';
+import PaymentSuccessPage from './components/PaymentSuccessPage';
 
-type Page = 'dashboard' | 'howToUse' | 'support' | 'pricing' | 'subscription';
+type Page = 'dashboard' | 'howToUse' | 'support' | 'pricing' | 'subscription' | 'success';
 
 const App: React.FC = () => {
   // Route State Management
@@ -37,6 +40,9 @@ const App: React.FC = () => {
   // New State for Plans
   const [userPlan, setUserPlan] = useState<PlanTier>('free');
   const [has247Addon, setHas247Addon] = useState<boolean>(false);
+  const [notifications, setNotifications] = useState<Notification[]>([]);
+  const [showNotificationDropdown, setShowNotificationDropdown] = useState<boolean>(false);
+  const [polarProducts, setPolarProducts] = useState<Product[]>([]);
 
   const [showWelcomeModal, setShowWelcomeModal] = useState<boolean>(true);
   const [showAddAgentModal, setShowAddAgentModal] = useState<boolean>(false);
@@ -44,7 +50,7 @@ const App: React.FC = () => {
   const [showUserDashboard, setShowUserDashboard] = useState<boolean>(false);
   const [currentPage, setCurrentPage] = useState<Page>('dashboard');
 
-  const eventSourcesRef = useRef<Map<string, EventSource>>(new Map());
+  const pollingIntervalsRef = useRef<Map<string, NodeJS.Timeout>>(new Map());
   const scheduledTimeoutsRef = useRef<Map<string, number>>(new Map());
   const dashboardContainerRef = useRef<HTMLDivElement>(null);
   const chatbotWidgetRef = useRef<ChatbotWidgetRef>(null);
@@ -72,42 +78,56 @@ const App: React.FC = () => {
 
   // Check auth status & load state on initial render
   useEffect(() => {
-    try {
-      const session = localStorage.getItem('dashboard_session');
-      if (session) {
-        const { expiresAt } = JSON.parse(session);
-        if (new Date().getTime() < expiresAt) {
-          setIsAuthenticated(true);
+    const validateAuth = async () => {
+      try {
+        const session = localStorage.getItem('dashboard_session');
+        if (session) {
+          const { expiresAt } = JSON.parse(session);
+          if (new Date().getTime() < expiresAt) {
+            setIsAuthenticated(true);
 
-          // Load support requests
-          const storedRequests = localStorage.getItem('support_requests');
-          if (storedRequests) {
-            const parsed = JSON.parse(storedRequests);
-            if (Array.isArray(parsed)) {
-              const currentWeekStart = getWeekStart(new Date());
-              const currentWeekRequests = parsed
-                .filter(d => typeof d === 'string')
-                .map(d => new Date(d))
-                .filter(d => !isNaN(d.getTime()) && getWeekStart(d) === currentWeekStart);
-              setSupportRequests(currentWeekRequests);
+            // Validate with backend and sync plan
+            const response = await authApi.validate();
+            if (response.success && response.data?.user) {
+              const user = response.data.user;
+              setUserPlan(user.planTier);
+              setHas247Addon(user.has247Addon);
+              localStorage.setItem('user_plan', user.planTier);
+              localStorage.setItem('has_247_addon', JSON.stringify(user.has247Addon));
+            } else {
+              // If validation fails, logout
+              setIsAuthenticated(false);
+              localStorage.removeItem('dashboard_session');
             }
+
+            // Fetch support requests from backend
+            try {
+              const response = await dashboardApi.getRequests();
+              if (response.success && response.data) {
+                const weekStart = getWeekStart(new Date());
+                const thisWeekRequests = response.data.requests
+                  .filter((r: any) => r.type === 'support')
+                  .filter((r: any) => {
+                    const reqDate = new Date(r.createdAt);
+                    return getWeekStart(reqDate) === weekStart;
+                  });
+
+                setSupportRequests(thisWeekRequests.map((r: any) => new Date(r.createdAt)));
+              }
+            } catch (error) {
+              console.error('Failed to fetch support requests:', error);
+            }
+          } else {
+            localStorage.removeItem('dashboard_session');
           }
-
-          // Load Plan
-          const storedPlan = localStorage.getItem('user_plan');
-          if (storedPlan) setUserPlan(storedPlan as PlanTier);
-
-          const storedAddon = localStorage.getItem('has_247_addon');
-          if (storedAddon) setHas247Addon(JSON.parse(storedAddon));
-
-        } else {
-          localStorage.removeItem('dashboard_session');
         }
+      } catch (error) {
+        console.error("Failed to check auth session", error);
+        localStorage.removeItem('dashboard_session');
       }
-    } catch (error) {
-      console.error("Failed to check auth session", error);
-      localStorage.removeItem('dashboard_session');
-    }
+    };
+
+    validateAuth();
   }, []);
 
   // Animate dashboard cards and manage visibility based on welcome modal
@@ -138,26 +158,61 @@ const App: React.FC = () => {
   }, [isAuthenticated, currentPage, showWelcomeModal]);
 
 
-  // Load agents from localStorage on initial render
+  // Load agents from backend on initial render
   useEffect(() => {
     if (!isAuthenticated) return;
-    try {
-      const storedAgents = localStorage.getItem('n8n-agents');
-      if (storedAgents) {
-        const parsedAgents: Agent[] = JSON.parse(storedAgents);
-        setShowWelcomeModal(false);
-        const initializedAgents = parsedAgents.map(agent => ({
-          ...agent,
-          status: agent.schedule && new Date(agent.schedule) > new Date() ? AgentStatus.Scheduled : AgentStatus.Idle,
-        }));
-        setAgents(initializedAgents);
-      } else {
+
+    const fetchAgents = async () => {
+      try {
+        const response = await agentsApi.getAll();
+        if (response.success && response.data?.agents) {
+          const fetchedAgents: Agent[] = response.data.agents;
+
+          if (fetchedAgents.length > 0) {
+            setShowWelcomeModal(false);
+          } else {
+            setShowWelcomeModal(true);
+          }
+
+          // Re-initialize status based on current time
+          const initializedAgents = fetchedAgents.map(agent => ({
+            ...agent,
+            status: agent.schedule && new Date(agent.schedule) > new Date() ? AgentStatus.Scheduled : AgentStatus.Idle,
+          }));
+
+          setAgents(initializedAgents);
+        } else {
+          setShowWelcomeModal(true);
+        }
+      } catch (error) {
+        console.error("Failed to fetch agents from backend", error);
         setShowWelcomeModal(true);
       }
-    } catch (error) {
-      console.error("Failed to load agents from localStorage", error);
-      setShowWelcomeModal(true);
+    };
+
+    fetchAgents();
+
+    // Check for payment success
+    const params = new URLSearchParams(window.location.search);
+    const checkoutId = params.get('checkout_id');
+    if (checkoutId) {
+      window.history.replaceState({}, '', '/');
+      setCurrentPage('success');
     }
+
+    // Fetch Polar products
+    const fetchProducts = async () => {
+      try {
+        const response = await paymentApi.getProducts();
+        if (response.success && response.data) {
+          setPolarProducts(response.data as any); // Type assertion needed due to backend response structure
+        }
+      } catch (error) {
+        console.error('Failed to fetch Polar products:', error);
+      }
+    };
+    fetchProducts();
+
     const initialSessionId = crypto.randomUUID();
     setTerminalSessions([{
       id: initialSessionId,
@@ -173,25 +228,8 @@ const App: React.FC = () => {
     setActiveTerminalId(initialSessionId);
   }, [isAuthenticated]);
 
-  // Persist agents
-  useEffect(() => {
-    if (!isAuthenticated) return;
-    try {
-      localStorage.setItem('n8n-agents', JSON.stringify(agents));
-    } catch (error) {
-      console.error("Failed to save agents to localStorage", error);
-    }
-  }, [agents, isAuthenticated]);
 
-  // Persist support requests
-  useEffect(() => {
-    if (!isAuthenticated) return;
-    try {
-      localStorage.setItem('support_requests', JSON.stringify(supportRequests));
-    } catch (error) {
-      console.error("Failed to save support requests to localStorage", error);
-    }
-  }, [supportRequests, isAuthenticated]);
+
 
   // Persist Plan
   useEffect(() => {
@@ -221,12 +259,12 @@ const App: React.FC = () => {
   }, []);
 
   const stopAgent = useCallback((sessionId: string) => {
-    const eventSource = eventSourcesRef.current.get(sessionId);
-    if (eventSource) {
-      eventSource.close();
-      eventSourcesRef.current.delete(sessionId);
-      addLog(sessionId, LogType.Info, 'Terminal closed by user. The connection to the agent has been severed.');
-      addLog(sessionId, LogType.Info, 'Note: This action does not terminate the workflow on the n8n server.');
+    const intervalId = pollingIntervalsRef.current.get(sessionId);
+    if (intervalId) {
+      clearInterval(intervalId);
+      pollingIntervalsRef.current.delete(sessionId);
+      addLog(sessionId, LogType.Info, 'Polling stopped by user.');
+      // Optionally notify backend to stop execution if API supports it
       updateSessionStatus(sessionId, AgentStatus.Cancelled);
     }
   }, [addLog, updateSessionStatus]);
@@ -256,90 +294,155 @@ const App: React.FC = () => {
     }
 
     const newSessionId = crypto.randomUUID();
-    const newSession: TerminalSession = {
-      id: newSessionId,
-      agentId: agent.id,
-      agentName: agent.name,
-      logs: [],
-      status: AgentStatus.Running
-    };
 
-    setTerminalSessions(prev => [...prev, newSession]);
-    setActiveTerminalId(newSessionId);
-
+    // Initial UI update
     const log = (type: LogType, message: string) => addLog(newSessionId, type, message);
 
-    log(LogType.Info, `Triggering agent: "${agent.name}"...`);
-    log(LogType.Info, `POST ${agent.webhookUrl}`);
-
-    let sseUrl: string;
-
     try {
-      const response = await fetch(agent.webhookUrl, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ triggeredBy: 'n8n-dashboard', timestamp: new Date().toISOString() })
+      log(LogType.Info, `Triggering agent: "${agent.name}"...`);
+
+      // Call backend proxy
+      const response = await n8nApi.triggerWebhook({
+        webhookUrl: agent.webhookUrl,
+        agentId: agent.id,
+        method: agent.method || 'POST',
+        payload: agent.inputPayload ? JSON.parse(agent.inputPayload) : undefined
       });
 
-      if (!response.ok) {
-        throw new Error(`Webhook request failed with status ${response.status}`);
+      // Handle potentially nested data structure from apiFetch/backend
+      const responsePayload = response.data as any;
+      const runId = responsePayload?.data?.runId || responsePayload?.runId;
+
+      if (!response.success || !runId) {
+        console.error('Trigger Failed:', response);
+        throw new Error(response.error || 'Failed to trigger agent: No Run ID returned');
       }
 
-      const responseData = await response.json();
+      // Update session with runId
+      const newSession: TerminalSession = {
+        id: newSessionId,
+        agentId: agent.id,
+        agentName: agent.name,
+        logs: [],
+        status: AgentStatus.Running,
+        runId: runId
+      };
 
-      if (typeof responseData.sseUrl !== 'string' || !responseData.sseUrl) {
-        throw new Error("Webhook response is missing the required 'sseUrl' field. Please ensure your n8n workflow returns a JSON object like: { \"sseUrl\": \"...\" }");
-      }
-      sseUrl = responseData.sseUrl;
+      setTerminalSessions(prev => [...prev, newSession]);
+      setActiveTerminalId(newSessionId);
 
-      log(LogType.Success, 'Webhook triggered successfully. Waiting for event stream...');
-      log(LogType.Info, `Received SSE stream URL. Connecting...`);
+      log(LogType.Success, `Agent started. Run ID: ${runId}`);
+      log(LogType.Info, 'Waiting for logs...');
 
-    } catch (error) {
-      const errorMessage = error instanceof Error ? error.message : 'An unknown error occurred.';
-      log(LogType.Error, `Failed to trigger webhook: ${errorMessage}`);
-      updateSessionStatus(newSessionId, AgentStatus.Error);
-      return;
-    }
-
-    const eventSource = new EventSource(sseUrl);
-    eventSourcesRef.current.set(newSessionId, eventSource);
-
-    eventSource.onopen = () => {
-      log(LogType.Success, 'Log stream connection established.');
-    };
-
-    eventSource.onerror = () => {
-      log(LogType.Error, 'Connection to agent lost unexpectedly. The workflow may not have completed.');
-      updateSessionStatus(newSessionId, AgentStatus.Error);
-      eventSourcesRef.current.get(newSessionId)?.close();
-      eventSourcesRef.current.delete(newSessionId);
-    };
-
-    eventSource.onmessage = (event: MessageEvent) => {
-      try {
-        const data = JSON.parse(event.data);
-
-        if (data.type === 'control') {
-          if (data.message === 'COMPLETE') {
-            updateSessionStatus(newSessionId, AgentStatus.Completed);
-            log(LogType.Success, 'Workflow completed successfully!');
-          } else if (data.message === 'ERROR') {
-            updateSessionStatus(newSessionId, AgentStatus.Error);
-            log(LogType.Error, 'Workflow failed. Check logs for details.');
-          }
-          eventSourcesRef.current.get(newSessionId)?.close();
-          eventSourcesRef.current.delete(newSessionId);
+      // Start polling
+      const pollLogs = async () => {
+        // Prevent polling if runId is invalid or 'undefined' string
+        if (!runId || runId === 'undefined' || typeof runId !== 'string') {
+          console.warn('Invalid runId for polling:', runId);
           return;
         }
 
-        if (Object.values(LogType).includes(data.type)) {
-          log(data.type, data.message);
+        try {
+          const logsResponse = await n8nApi.pollLogs(runId);
+
+          if (logsResponse.success && logsResponse.data?.logs) {
+            const n8nLogs = logsResponse.data.logs;
+
+            // We need to sync these logs with our session logs
+            // Since we're polling, we might get duplicates if we just append
+            // But our UI helper 'addLog' appends.
+            // Better strategy: Update the entire log list for this session in state
+
+            setTerminalSessions(prev => prev.map(session => {
+              if (session.id !== newSessionId) return session;
+
+              // Map n8n logs to LogEntry
+              const newLogEntries: LogEntry[] = n8nLogs.map((l: any) => {
+                let message = l.logMessage;
+                try {
+                  const parsed = JSON.parse(message);
+                  if (parsed && typeof parsed === 'object' && parsed.message) {
+                    message = parsed.message;
+                  } else if (typeof parsed === 'string') {
+                    message = parsed;
+                  }
+                } catch (e) {
+                  // Not JSON
+                }
+
+                return {
+                  type: l.status === 'error' ? LogType.Error :
+                    l.status === 'success' ? LogType.Success :
+                      LogType.Info,
+                  message: message,
+                  timestamp: new Date(l.createdAt)
+                };
+              });
+
+              // Check if completed
+              const isComplete = newLogEntries.some(l => l.type === LogType.Success || l.message.includes('completed'));
+              const isError = newLogEntries.some(l => l.type === LogType.Error);
+
+              // Update status if needed
+              let newStatus = session.status;
+              if (isComplete) newStatus = AgentStatus.Completed;
+              if (isError) newStatus = AgentStatus.Error;
+
+              // If status changed to completed/error, stop polling
+              if (newStatus !== AgentStatus.Running) {
+                const intervalId = pollingIntervalsRef.current.get(newSessionId);
+                if (intervalId) {
+                  clearInterval(intervalId);
+                  pollingIntervalsRef.current.delete(newSessionId);
+                }
+              }
+
+              return {
+                ...session,
+                logs: newLogEntries,
+                status: newStatus
+              };
+            }));
+          }
+        } catch (error) {
+          console.error('Polling error', error);
         }
-      } catch (error) {
-        log(LogType.Error, 'Failed to parse incoming log event. Received: ' + event.data);
+      };
+
+      // Initial poll
+      pollLogs();
+
+      // Set interval (1.5s)
+      const intervalId = setInterval(pollLogs, 1500);
+      pollingIntervalsRef.current.set(newSessionId, intervalId);
+
+    } catch (error) {
+      const errorMessage = error instanceof Error ? error.message : 'An unknown error occurred.';
+
+      // If session exists (it might not if trigger failed early), update it
+      // If not, we need to create a failed session to show the error
+
+      const sessionExists = terminalSessions.some(s => s.id === newSessionId);
+      if (!sessionExists) {
+        // Creates a session just to show the error
+        const failedSession: TerminalSession = {
+          id: newSessionId,
+          agentId: agent.id,
+          agentName: agent.name,
+          logs: [{
+            type: LogType.Error,
+            message: `Failed to trigger webhook: ${errorMessage}`,
+            timestamp: new Date()
+          }],
+          status: AgentStatus.Error
+        };
+        setTerminalSessions(prev => [...prev, failedSession]);
+        setActiveTerminalId(newSessionId);
+      } else {
+        log(LogType.Error, `Failed to trigger webhook: ${errorMessage}`);
+        updateSessionStatus(newSessionId, AgentStatus.Error);
       }
-    };
+    }
 
   }, [agents, addLog, updateSessionStatus, activeTerminalId, terminalSessions]);
 
@@ -379,27 +482,46 @@ const App: React.FC = () => {
   }, [agents, triggerAgent, addLog, updateAgentStatus, isAuthenticated, activeTerminalId, terminalSessions]);
 
 
-  const addAgent = (newAgent: Omit<Agent, 'id' | 'status'>) => {
-    const agent: Agent = {
-      ...newAgent,
-      id: crypto.randomUUID(),
-      status: newAgent.schedule ? AgentStatus.Scheduled : AgentStatus.Idle,
+  const addAgent = async (newAgent: Omit<Agent, 'id' | 'status'>) => {
+    try {
+      const response = await agentsApi.create(newAgent);
+      if (response.success && response.data?.agent) {
+        const agent = response.data.agent;
+        setAgents(prev => [...prev, agent]);
+        setShowAddAgentModal(false);
+        setShowWelcomeModal(false);
+      } else {
+        console.error('Failed to create agent in backend:', response.error);
+        alert(`Failed to add agent: ${response.error || 'Unknown error'}`);
+      }
+    } catch (error) {
+      console.error('Failed to add agent:', error);
+      alert('Failed to connect to backend to add agent.');
     }
-    setAgents(prev => [...prev, agent]);
-    setShowAddAgentModal(false);
   };
 
-  const deleteAgent = (agentId: string) => {
-    const timeoutId = scheduledTimeoutsRef.current.get(agentId);
-    if (timeoutId) {
-      clearTimeout(timeoutId);
-      scheduledTimeoutsRef.current.delete(agentId);
+  const deleteAgent = async (agentId: string) => {
+    try {
+      const response = await agentsApi.delete(agentId);
+      if (response.success) {
+        const timeoutId = scheduledTimeoutsRef.current.get(agentId);
+        if (timeoutId) {
+          clearTimeout(timeoutId);
+          scheduledTimeoutsRef.current.delete(agentId);
+        }
+
+        const sessionsToClose = terminalSessions.filter(s => s.agentId === agentId).map(s => s.id);
+        sessionsToClose.forEach(closeTerminal);
+
+        setAgents(prev => prev.filter(a => a.id !== agentId));
+      } else {
+        console.error('Failed to delete agent in backend:', response.error);
+        alert(`Failed to delete agent: ${response.error || 'Unknown error'}`);
+      }
+    } catch (error) {
+      console.error('Failed to delete agent:', error);
+      alert('Failed to connect to backend to delete agent.');
     }
-
-    const sessionsToClose = terminalSessions.filter(s => s.agentId === agentId).map(s => s.id);
-    sessionsToClose.forEach(closeTerminal);
-
-    setAgents(prev => prev.filter(a => a.id !== agentId));
   };
 
   const stopLatestAgentRun = useCallback((agentId: string) => {
@@ -440,92 +562,124 @@ const App: React.FC = () => {
   }, []);
 
   const nextSupportTicketExpiresAt = useMemo(() => {
-    const twoHours = 2 * 60 * 60 * 1000;
+    let duration = 2 * 60 * 60 * 1000; // Default 2 hours (Free)
+
+    if (userPlan === 'pro') {
+      duration = 1 * 60 * 60 * 1000; // 1 hour
+    } else if (userPlan === 'enterprise') {
+      duration = 15 * 60 * 1000; // 15 mins
+    }
+
     const now = new Date().getTime();
 
     const activeExpirations = supportRequests
-      .map(req => new Date(req).getTime() + twoHours)
+      .map(req => new Date(req).getTime() + duration)
       .filter(exp => exp > now)
       .sort((a, b) => a - b);
 
     return activeExpirations.length > 0 ? new Date(activeExpirations[0]) : null;
-  }, [supportRequests]);
+  }, [supportRequests, userPlan]);
 
   const renderPage = () => {
     switch (currentPage) {
       case 'howToUse':
         return <HowToUsePage />;
+      case 'success':
+        return <PaymentSuccessPage onGoHome={() => setCurrentPage('dashboard')} />;
       case 'pricing':
         return (
           <PricingPage
             currentPlan={userPlan}
             has247Addon={has247Addon}
             onSelectPlan={async (plan) => {
-              // Optimistic update
-              setUserPlan(plan);
-              if (plan === 'enterprise') setHas247Addon(true);
-
-              // Update backend database
-              try {
-                const response = await authApi.updatePlan(plan, plan === 'enterprise' ? true : has247Addon);
-                if (response.success && response.data) {
-                  // Sync with backend response
-                  const user = response.data;
-                  setUserPlan(user.planTier);
-                  setHas247Addon(user.has247Addon);
-                  localStorage.setItem('user_data', JSON.stringify(user));
-                  localStorage.setItem('user_plan', user.planTier);
-                  localStorage.setItem('has_247_addon', JSON.stringify(user.has247Addon));
-
-                  // Immediately re-validate to ensure real-time sync
-                  try {
-                    const validateResponse = await authApi.validate();
-                    if (validateResponse.success && validateResponse.data?.user) {
-                      const freshUser = validateResponse.data.user;
-                      localStorage.setItem('user_data', JSON.stringify(freshUser));
-                      setUserPlan(freshUser.planTier);
-                      setHas247Addon(freshUser.has247Addon);
-                    }
-                  } catch (validationError) {
-                    console.error('Failed to re-validate after plan update:', validationError);
+              if (plan === 'free') {
+                // Downgrade logic (cancel plan)
+                try {
+                  const response = await authApi.cancelPlan();
+                  if (response.success && response.data) {
+                    const user = response.data;
+                    setUserPlan(user.planTier);
+                    setHas247Addon(user.has247Addon);
+                    localStorage.setItem('user_data', JSON.stringify(user));
+                    localStorage.setItem('user_plan', user.planTier);
+                    localStorage.setItem('has_247_addon', JSON.stringify(user.has247Addon));
+                    alert('Plan cancelled successfully.');
                   }
+                } catch (error) {
+                  console.error('Failed to cancel plan:', error);
+                  alert('Failed to cancel plan.');
                 }
-              } catch (error) {
-                console.error('Failed to update plan in backend:', error);
+              } else {
+                // Upgrade logic -> Checkout
+                const productName = plan === 'pro' ? 'Pro Plan' : 'Enterprise Plan';
+                const product = polarProducts.find(p => p.name === productName);
+
+                if (product) {
+                  try {
+                    const response = await paymentApi.createCheckout(product.id);
+                    if (response.success && response.data?.url) {
+                      window.location.href = response.data.url;
+                    } else {
+                      alert('Failed to create checkout session.');
+                    }
+                  } catch (error) {
+                    console.error('Checkout error:', error);
+                    alert('Failed to initiate checkout.');
+                  }
+                } else {
+                  console.error('Product not found:', productName);
+                  // Fallback for demo/dev if products not synced
+                  // Optimistic update as before
+                  setUserPlan(plan);
+                  if (plan === 'enterprise') setHas247Addon(true);
+                  try {
+                    const response = await authApi.updatePlan(plan, plan === 'enterprise' ? true : has247Addon);
+                    if (response.success && response.data) {
+                      const user = response.data;
+                      setUserPlan(user.planTier);
+                      setHas247Addon(user.has247Addon);
+                      localStorage.setItem('user_data', JSON.stringify(user));
+                    }
+                  } catch (e) { console.error(e); }
+                }
               }
             }}
             onToggleAddon={async () => {
-              // Optimistic update
-              const newAddonState = !has247Addon;
-              setHas247Addon(newAddonState);
-
-              // Update backend database
-              try {
-                const response = await authApi.updatePlan(userPlan, newAddonState);
-                if (response.success && response.data) {
-                  // Sync with backend response
-                  const user = response.data;
-                  setUserPlan(user.planTier);
-                  setHas247Addon(user.has247Addon);
-                  localStorage.setItem('user_data', JSON.stringify(user));
-                  localStorage.setItem('user_plan', user.planTier);
-                  localStorage.setItem('has_247_addon', JSON.stringify(user.has247Addon));
-
-                  // Immediately re-validate to ensure real-time sync
-                  try {
-                    const validateResponse = await authApi.validate();
-                    if (validateResponse.success && validateResponse.data?.user) {
-                      const freshUser = validateResponse.data.user;
-                      localStorage.setItem('user_data', JSON.stringify(freshUser));
-                      setUserPlan(freshUser.planTier);
-                      setHas247Addon(freshUser.has247Addon);
-                    }
-                  } catch (validationError) {
-                    console.error('Failed to re-validate after addon toggle:', validationError);
+              if (has247Addon) {
+                // Remove addon (downgrade logic essentially, manually handle via API needed or portal)
+                // For now, allow removing via API
+                const newAddonState = false;
+                setHas247Addon(newAddonState);
+                try {
+                  const response = await authApi.updatePlan(userPlan, newAddonState);
+                  if (response.success && response.data) {
+                    const user = response.data;
+                    setHas247Addon(user.has247Addon);
+                    localStorage.setItem('user_data', JSON.stringify(user));
                   }
+                } catch (e) {
+                  console.error(e);
+                  setHas247Addon(true); // Revert
                 }
-              } catch (error) {
-                console.error('Failed to update addon in backend:', error);
+              } else {
+                // Add addon -> Checkout
+                const product = polarProducts.find(p => p.name === '24/7 Support Add-on');
+                if (product) {
+                  try {
+                    const response = await paymentApi.createCheckout(product.id);
+                    if (response.success && response.data?.url) {
+                      window.location.href = response.data.url;
+                    }
+                  } catch (error) {
+                    console.error('Checkout error:', error);
+                  }
+                } else {
+                  // Fallback
+                  setHas247Addon(true);
+                  try {
+                    await authApi.updatePlan(userPlan, true);
+                  } catch (e) { console.error(e); }
+                }
               }
             }}
           />
@@ -650,7 +804,7 @@ const App: React.FC = () => {
     const token = localStorage.getItem('auth_token');
     if (!token) return;
 
-    const socket = io('http://localhost:5174', {
+    const socket = io('http://localhost:5000', {
       auth: { token },
       transports: ['websocket']
     });
@@ -673,9 +827,6 @@ const App: React.FC = () => {
             localStorage.setItem('user_data', JSON.stringify(user));
             localStorage.setItem('user_plan', user.planTier);
             localStorage.setItem('has_247_addon', JSON.stringify(user.has247Addon));
-
-            // Also refresh support requests if needed
-            // For now, we just sync the plan and user data
           }
         } catch (error) {
           console.error('Failed to sync after update:', error);
@@ -683,6 +834,82 @@ const App: React.FC = () => {
       };
 
       validateAndSync();
+    });
+
+    // Listen for new notifications
+    socket.on('new_notification', (notification: Notification) => {
+      setNotifications(prev => [notification, ...prev]);
+
+      // Optional: Auto-show dropdown for critical notifications or play sound
+      // if (notification.type === 'error' || notification.type === 'support') {
+      //   setShowNotificationDropdown(true);
+      // }
+    });
+
+    // Listen for real-time n8n logs
+    socket.on('n8n_log_new', (log: any) => {
+      if (!log || !log.runId) return;
+
+      setTerminalSessions(prev => prev.map(session => {
+        if (session.runId === log.runId) {
+          // Parse message
+          let message = log.logMessage;
+          try {
+            // Try to make it cleaner if it's JSON
+            const parsed = JSON.parse(message);
+            if (parsed && typeof parsed === 'object' && parsed.message) {
+              message = parsed.message;
+            } else if (typeof parsed === 'string') {
+              message = parsed;
+            }
+          } catch (e) {
+            // Not JSON, keep as is
+          }
+
+          const type = log.status === 'error' ? LogType.Error :
+            log.status === 'success' ? LogType.Success :
+              LogType.Info;
+
+          // Deduplicate based on simple heuristic (message + approx timestamp)
+          const isDuplicate = session.logs.some(l =>
+            l.message === message &&
+            Math.abs(new Date(l.timestamp).getTime() - new Date(log.createdAt).getTime()) < 2000
+          );
+
+          if (isDuplicate) return session;
+
+          // Check if completion
+          let newStatus = session.status;
+          if (type === LogType.Success || message.toLowerCase().includes('completed')) {
+            newStatus = AgentStatus.Completed;
+            // Stop polling if we get a completion event
+            const intervalId = pollingIntervalsRef.current.get(session.id);
+            if (intervalId) {
+              clearInterval(intervalId);
+              pollingIntervalsRef.current.delete(session.id);
+            }
+          }
+          if (type === LogType.Error) {
+            newStatus = AgentStatus.Error;
+            const intervalId = pollingIntervalsRef.current.get(session.id);
+            if (intervalId) {
+              clearInterval(intervalId);
+              pollingIntervalsRef.current.delete(session.id);
+            }
+          }
+
+          return {
+            ...session,
+            logs: [...session.logs, {
+              type,
+              message,
+              timestamp: new Date(log.createdAt)
+            }],
+            status: newStatus
+          };
+        }
+        return session;
+      }));
     });
 
     return () => {
@@ -762,8 +989,21 @@ const App: React.FC = () => {
         supportRequestCount={supportRequests.length}
         weeklySupportLimit={weeklySupportLimit}
         nextSupportTicketExpiresAt={nextSupportTicketExpiresAt}
+        username={JSON.parse(localStorage.getItem('user_data') || '{}').username || 'User'}
+        userPlan={userPlan}
+        notifications={notifications}
+        onMarkNotificationRead={async (id) => {
+          setNotifications(prev => prev.map(n => n.id === id ? { ...n, is_read: true } : n));
+          await notificationApi.markAsRead(id);
+        }}
+        onMarkAllNotificationsRead={async () => {
+          setNotifications(prev => prev.map(n => ({ ...n, is_read: true })));
+          await notificationApi.markAllAsRead();
+        }}
+        showNotificationDropdown={showNotificationDropdown}
+        setShowNotificationDropdown={setShowNotificationDropdown}
       />
-      <main className="flex-1 container mx-auto px-4 md:px-8 pt-24 md:pt-32 pb-4 md:pb-6 overflow-y-auto">
+      <main className="flex-1 container mx-auto px-4 md:px-8 pt-24 md:pt-32 pb-4 md:pb-6 overflow-y-auto overscroll-contain [perspective:1000px] [backface-visibility:hidden]">
         {renderPage()}
       </main>
       <ChatbotWidget

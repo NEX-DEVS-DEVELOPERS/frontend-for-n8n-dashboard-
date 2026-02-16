@@ -14,14 +14,18 @@ import {
     CreditCardIcon,
     CheckBadgeIcon,
     WrenchScrewdriverIcon,
-    UserIcon
+    UserIcon,
+    BellIcon
 } from './icons';
+import NotificationDropdown, { Notification } from './NotificationDropdown';
 import ThemeToggle from './ThemeToggle';
 import { cn } from './ui';
 
 // --- Sub-Components ---
 
-const SupportTimer: React.FC<{ expiresAt: Date; compact?: boolean }> = ({ expiresAt, compact }) => {
+import { PlanTier } from '../types';
+
+const SupportTimer: React.FC<{ expiresAt: Date; compact?: boolean; plan?: PlanTier }> = ({ expiresAt, compact, plan }) => {
     const [timeLeft, setTimeLeft] = useState('');
     const [colorClass, setColorClass] = useState('text-green-400');
 
@@ -85,8 +89,7 @@ const SupportTimer: React.FC<{ expiresAt: Date; compact?: boolean }> = ({ expire
                 "absolute top-full mt-3 w-max max-w-[180px] p-3 rounded-xl bg-foreground/90 text-background backdrop-blur-xl shadow-xl opacity-0 group-hover:opacity-100 transition-all duration-300 pointer-events-none z-50 translate-y-2 group-hover:translate-y-0 text-center text-xs font-semibold leading-relaxed border border-background/20",
                 compact ? "right-0 origin-top-right" : "left-1/2 -translate-x-1/2 origin-top"
             )}>
-                Your assistant will assist you in under 2 hours.
-
+                Your assistant will assist you in under {plan === 'enterprise' ? '15 minutes' : plan === 'pro' ? '1 hour' : '2 hours'}.
                 <div className={cn(
                     "absolute bottom-full w-0 h-0 border-l-[6px] border-l-transparent border-r-[6px] border-r-transparent border-b-[6px] border-b-foreground/90",
                     compact ? "right-2" : "left-1/2 -translate-x-1/2"
@@ -96,7 +99,7 @@ const SupportTimer: React.FC<{ expiresAt: Date; compact?: boolean }> = ({ expire
     );
 };
 
-const CompactStats: React.FC<{ count: number; limit: number | 'Unlimited'; expiresAt: Date | null }> = ({ count, limit, expiresAt }) => (
+const CompactStats: React.FC<{ count: number; limit: number | 'Unlimited'; expiresAt: Date | null; plan?: PlanTier }> = ({ count, limit, expiresAt, plan }) => (
     <div className="flex items-center gap-3 bg-muted/10 backdrop-blur-sm border border-border/20 rounded-full pl-3 pr-2 py-1.5 shadow-sm hover:bg-muted/20 transition-colors">
         <div className="flex items-center gap-1.5 text-xs font-semibold tabular-nums text-muted-foreground" title="Support Requests Used">
             <ShieldCheckIcon className="h-3.5 w-3.5 text-primary/80" />
@@ -108,7 +111,7 @@ const CompactStats: React.FC<{ count: number; limit: number | 'Unlimited'; expir
         {expiresAt && (
             <>
                 <div className="h-3 w-px bg-border/30"></div>
-                <SupportTimer expiresAt={expiresAt} compact />
+                <SupportTimer expiresAt={expiresAt} compact plan={plan} />
             </>
         )}
     </div>
@@ -242,6 +245,13 @@ interface HeaderProps {
     supportRequestCount: number;
     weeklySupportLimit: number | 'Unlimited';
     nextSupportTicketExpiresAt: Date | null;
+    username?: string;
+    userPlan?: PlanTier;
+    notifications: Notification[];
+    onMarkNotificationRead: (id: string) => void;
+    onMarkAllNotificationsRead: () => void;
+    showNotificationDropdown: boolean;
+    setShowNotificationDropdown: (show: boolean) => void;
 }
 
 const Header: React.FC<HeaderProps> = ({
@@ -254,9 +264,17 @@ const Header: React.FC<HeaderProps> = ({
     onOpenUserDashboard,
     supportRequestCount,
     weeklySupportLimit,
-    nextSupportTicketExpiresAt
+    nextSupportTicketExpiresAt,
+    username,
+    userPlan,
+    notifications,
+    onMarkNotificationRead,
+    onMarkAllNotificationsRead,
+    showNotificationDropdown,
+    setShowNotificationDropdown
 }) => {
     const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
+    const unreadCount = notifications.filter(n => !n.is_read).length;
 
     const handleMobileNavigate = (page: 'dashboard' | 'howToUse' | 'support' | 'pricing' | 'subscription') => {
         if (page === 'dashboard') onNavigateToDashboard();
@@ -281,14 +299,19 @@ const Header: React.FC<HeaderProps> = ({
             <header className="bg-card/90 backdrop-blur-xl border-b border-border/30 fixed top-0 left-0 right-0 z-50 transition-all duration-300 shadow-sm">
                 <div className="container mx-auto px-4 md:px-8 py-3 md:py-4 flex items-center justify-between">
                     {/* Logo Section */}
-                    <button onClick={onNavigateToDashboard} className="flex items-center gap-3 group z-10">
-                        <div className="bg-primary/10 border border-primary/30 h-9 w-9 md:h-10 md:w-10 rounded-xl flex items-center justify-center flex-shrink-0 group-hover:scale-105 transition-transform shadow-lg shadow-primary/10">
-                            <N8nLogo className="h-5 w-5 md:h-6 md:w-6 text-primary" />
+                    <button onClick={onNavigateToDashboard} className="flex items-center gap-4 group z-10">
+                        <div className="flex flex-col items-center">
+                            <div className="bg-primary/5 border border-primary/20 h-10 w-10 md:h-12 md:w-12 rounded-xl flex items-center justify-center flex-shrink-0 group-hover:scale-110 transition-transform shadow-lg shadow-primary/5 duration-500">
+                                <img src="/n8n-logo.svg" alt="N8n Logo" className="h-6 w-6 md:h-8 md:w-8" />
+                            </div>
+                            <span className="text-[8px] md:text-[9px] font-black text-primary/60 tracking-[0.2em] mt-1 uppercase">Nex-Devs</span>
                         </div>
-                        <h1 className="text-lg md:text-xl font-bold text-foreground tracking-wide group-hover:text-primary transition-colors">
-                            <span className="md:hidden">N8N Dashboard</span>
-                            <span className="hidden md:inline">N8N Agent Dashboard</span>
-                        </h1>
+                        <div className="flex flex-col">
+                            <h1 className="text-lg md:text-xl font-black text-foreground tracking-tight group-hover:text-primary transition-colors leading-none">
+                                N8N DASHBOARD
+                            </h1>
+                            <span className="text-[10px] md:text-xs text-muted-foreground font-medium tracking-wide">Automation Control Center</span>
+                        </div>
                     </button>
 
                     {/* Desktop Navigation & Stats (Visible on LG+) */}
@@ -331,20 +354,52 @@ const Header: React.FC<HeaderProps> = ({
                             {nextSupportTicketExpiresAt && (
                                 <>
                                     <div className="h-4 w-px bg-border/40"></div>
-                                    <SupportTimer expiresAt={nextSupportTicketExpiresAt} />
+                                    <SupportTimer expiresAt={nextSupportTicketExpiresAt} plan={userPlan} />
                                 </>
                             )}
                         </div>
 
-                        <div className="flex items-center gap-3 pl-3 border-l border-border/20">
+                        <div className="flex items-center gap-3 pl-3 border-l border-border/20 relative">
                             <ThemeToggle />
+
+                            <div className="h-9 w-9 relative">
+                                <button
+                                    onClick={() => setShowNotificationDropdown(!showNotificationDropdown)}
+                                    className={cn(
+                                        "h-full w-full rounded-full flex items-center justify-center transition-all hover:scale-105 active:scale-95 border",
+                                        showNotificationDropdown
+                                            ? "bg-primary/20 border-primary text-primary shadow-[0_0_10px_rgba(var(--primary),0.2)]"
+                                            : "bg-muted/30 border-border/30 text-muted-foreground hover:bg-muted/50 hover:text-foreground"
+                                    )}
+                                    title="Notifications"
+                                >
+                                    <BellIcon className="h-4.5 w-4.5" />
+                                    {unreadCount > 0 && (
+                                        <span className="absolute -top-1 -right-1 bg-red-500 text-white text-[9px] font-black h-4 w-4 rounded-full flex items-center justify-center border-2 border-background animate-pulse">
+                                            {unreadCount > 9 ? '9+' : unreadCount}
+                                        </span>
+                                    )}
+                                </button>
+
+                                <NotificationDropdown
+                                    isOpen={showNotificationDropdown}
+                                    notifications={notifications}
+                                    onMarkRead={onMarkNotificationRead}
+                                    onMarkAllRead={onMarkAllNotificationsRead}
+                                    onClose={() => setShowNotificationDropdown(false)}
+                                />
+                            </div>
 
                             <button
                                 onClick={onOpenUserDashboard}
-                                className="h-9 w-9 rounded-full bg-primary/10 hover:bg-primary/20 border border-primary/20 flex items-center justify-center text-primary transition-all hover:scale-105 active:scale-95"
+                                className="h-9 w-9 rounded-full bg-primary/10 hover:bg-primary/20 border border-primary/20 flex items-center justify-center text-primary transition-all hover:scale-105 active:scale-95 overflow-hidden"
                                 title="User Dashboard"
                             >
-                                <UserIcon className="h-4 w-4" />
+                                {username ? (
+                                    <span className="text-[10px] font-bold uppercase select-none">{username.charAt(0)}</span>
+                                ) : (
+                                    <UserIcon className="h-4 w-4" />
+                                )}
                             </button>
                         </div>
                     </div>
@@ -352,13 +407,36 @@ const Header: React.FC<HeaderProps> = ({
                     {/* Tablet/Mobile Controls (Visible < LG) */}
                     <div className="flex lg:hidden items-center gap-3">
                         {/* Clean, Organized Stats Pill */}
-                        <CompactStats count={supportRequestCount} limit={weeklySupportLimit} expiresAt={nextSupportTicketExpiresAt} />
+                        <CompactStats count={supportRequestCount} limit={weeklySupportLimit} expiresAt={nextSupportTicketExpiresAt} plan={userPlan} />
+
+                        <div className="relative">
+                            <button
+                                onClick={() => setShowNotificationDropdown(!showNotificationDropdown)}
+                                className={cn(
+                                    "h-9 w-9 rounded-full flex items-center justify-center border",
+                                    showNotificationDropdown
+                                        ? "bg-primary/20 border-primary text-primary"
+                                        : "bg-muted/30 border-border/30 text-muted-foreground"
+                                )}
+                            >
+                                <BellIcon className="h-4.5 w-4.5" />
+                                {unreadCount > 0 && (
+                                    <span className="absolute -top-1 -right-1 bg-red-500 text-white text-[9px] font-black h-4 w-4 rounded-full flex items-center justify-center border-2 border-background">
+                                        {unreadCount > 9 ? '9+' : unreadCount}
+                                    </span>
+                                )}
+                            </button>
+                        </div>
 
                         <button
                             onClick={onOpenUserDashboard}
-                            className="h-9 w-9 rounded-full bg-primary/10 border border-primary/20 flex items-center justify-center text-primary"
+                            className="h-9 w-9 rounded-full bg-primary/10 border border-primary/20 flex items-center justify-center text-primary overflow-hidden"
                         >
-                            <UserIcon className="h-5 w-5" />
+                            {username ? (
+                                <span className="text-xs font-bold uppercase select-none">{username.charAt(0)}</span>
+                            ) : (
+                                <UserIcon className="h-5 w-5" />
+                            )}
                         </button>
 
                         <button

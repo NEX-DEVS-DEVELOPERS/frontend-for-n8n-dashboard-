@@ -44,6 +44,8 @@ export interface Agent {
   webhookUrl: string;
   schedule: string; // ISO 8601 string from datetime-local input. Empty string if not set.
   status: AgentStatus;
+  method?: 'GET' | 'POST';
+  inputPayload?: string;
 }
 
 export interface TerminalSession {
@@ -52,6 +54,17 @@ export interface TerminalSession {
   agentName: string;
   logs: LogEntry[];
   status: AgentStatus;
+  runId?: string; // UUID for tracking n8n execution
+}
+
+export interface N8nLog {
+  id: number;
+  runId: string;
+  agentId: string;
+  logMessage: string;
+  status: string;
+  payload: any;
+  createdAt: Date;
 }
 
 // --- Plan & Pricing Types ---
