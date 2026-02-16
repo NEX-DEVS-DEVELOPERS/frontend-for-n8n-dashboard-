@@ -20,6 +20,10 @@ import {
 import NotificationDropdown, { Notification } from './NotificationDropdown';
 import ThemeToggle from './ThemeToggle';
 import { cn } from './ui';
+import { Dialog, DialogContent, DialogHeader, DialogTitle } from './ui/dialog';
+import { notificationApi } from '../services/api';
+import { ScrollArea } from './ui/scroll-area';
+import { Clock } from 'lucide-react';
 
 // --- Sub-Components ---
 
@@ -274,7 +278,13 @@ const Header: React.FC<HeaderProps> = ({
     setShowNotificationDropdown
 }) => {
     const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
+    const [showFullNotifications, setShowFullNotifications] = useState(false);
     const unreadCount = notifications.filter(n => !n.is_read).length;
+
+    const handleViewAll = () => {
+        setShowNotificationDropdown(false);
+        setShowFullNotifications(true);
+    };
 
     const handleMobileNavigate = (page: 'dashboard' | 'howToUse' | 'support' | 'pricing' | 'subscription') => {
         if (page === 'dashboard') onNavigateToDashboard();
@@ -302,7 +312,7 @@ const Header: React.FC<HeaderProps> = ({
                     <button onClick={onNavigateToDashboard} className="flex items-center gap-4 group z-10">
                         <div className="flex flex-col items-center">
                             <div className="bg-primary/5 border border-primary/20 h-10 w-10 md:h-12 md:w-12 rounded-xl flex items-center justify-center flex-shrink-0 group-hover:scale-110 transition-transform shadow-lg shadow-primary/5 duration-500">
-                                <img src="/n8n-logo.svg" alt="N8n Logo" className="h-6 w-6 md:h-8 md:w-8" />
+                                <N8nLogo className="h-6 w-6 md:h-8 md:w-8 text-black dark:text-white" />
                             </div>
                             <span className="text-[8px] md:text-[9px] font-black text-primary/60 tracking-[0.2em] mt-1 uppercase">Nex-Devs</span>
                         </div>
@@ -387,6 +397,7 @@ const Header: React.FC<HeaderProps> = ({
                                     onMarkRead={onMarkNotificationRead}
                                     onMarkAllRead={onMarkAllNotificationsRead}
                                     onClose={() => setShowNotificationDropdown(false)}
+                                    onViewAll={handleViewAll}
                                 />
                             </div>
 
@@ -426,6 +437,15 @@ const Header: React.FC<HeaderProps> = ({
                                     </span>
                                 )}
                             </button>
+                            <NotificationDropdown
+                                isOpen={showNotificationDropdown}
+                                notifications={notifications}
+                                onMarkRead={onMarkNotificationRead}
+                                onMarkAllRead={onMarkAllNotificationsRead}
+                                onClose={() => setShowNotificationDropdown(false)}
+                                isMobile={true}
+                                onViewAll={handleViewAll}
+                            />
                         </div>
 
                         <button
@@ -449,6 +469,67 @@ const Header: React.FC<HeaderProps> = ({
                     </div>
                 </div>
             </header>
+
+            {/* Full Screen Notifications Dialog */}
+            <Dialog open={showFullNotifications} onOpenChange={setShowFullNotifications}>
+                <DialogContent className="max-w-2xl w-[95vw] h-[80vh] flex flex-col p-0 overflow-hidden bg-card/95 backdrop-blur-2xl">
+                    <DialogHeader className="p-6 border-b border-border/30">
+                        <DialogTitle className="text-xl font-black tracking-tight flex items-center gap-3">
+                            <BellIcon className="h-6 w-6 text-primary" />
+                            Activity Logs
+                        </DialogTitle>
+                    </DialogHeader>
+
+                    <ScrollArea className="flex-1 p-6">
+                        {notifications.length === 0 ? (
+                            <div className="flex flex-col items-center justify-center h-full opacity-40 py-20">
+                                <BellIcon className="h-16 w-16 mb-4" />
+                                <p className="text-sm font-bold uppercase tracking-widest text-muted-foreground">No recent activity</p>
+                            </div>
+                        ) : (
+                            <div className="space-y-4">
+                                {notifications.map((notification) => (
+                                    <div
+                                        key={notification.id}
+                                        className={cn(
+                                            "p-4 rounded-2xl border transition-all cursor-pointer group",
+                                            !notification.is_read
+                                                ? "bg-primary/5 border-primary/20 shadow-sm shadow-primary/5"
+                                                : "bg-muted/5 border-border/20 hover:bg-muted/10"
+                                        )}
+                                        onClick={() => !notification.is_read && onMarkNotificationRead(notification.id)}
+                                    >
+                                        <div className="flex justify-between items-start mb-2">
+                                            <h4 className="font-bold text-sm text-foreground">{notification.title}</h4>
+                                            <span className="text-[10px] text-muted-foreground font-medium flex items-center gap-1">
+                                                <Clock className="h-3 w-3" />
+                                                {new Date(notification.created_at).toLocaleString()}
+                                            </span>
+                                        </div>
+                                        <p className="text-sm text-muted-foreground leading-relaxed">
+                                            {notification.message}
+                                        </p>
+                                    </div>
+                                ))}
+                            </div>
+                        )}
+                    </ScrollArea>
+
+                    <div className="p-4 border-t border-border/30 bg-muted/5 flex justify-between items-center px-8">
+                        <span className="text-xs text-muted-foreground font-medium">
+                            {unreadCount} unread notification{unreadCount !== 1 ? 's' : ''}
+                        </span>
+                        {notifications.length > 0 && (
+                            <button
+                                onClick={onMarkAllNotificationsRead}
+                                className="text-xs font-bold uppercase tracking-widest text-primary hover:text-primary/80 transition-colors"
+                            >
+                                Mark all as read
+                            </button>
+                        )}
+                    </div>
+                </DialogContent>
+            </Dialog>
         </>
     );
 };

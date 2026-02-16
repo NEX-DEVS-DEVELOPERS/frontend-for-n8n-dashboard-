@@ -1,16 +1,14 @@
 import React, { useState, useEffect, useRef } from 'react';
 import {
-    Bell,
     CheckCheck,
     Clock,
-    MessageSquare,
     CreditCard,
     Info,
     ShieldCheck,
     RotateCcw,
     X,
-    BellRing
 } from 'lucide-react';
+import { BellIcon } from './icons';
 import { cn } from './ui';
 import { notificationApi, supportApi } from '../services/api';
 import gsap from 'gsap';
@@ -31,7 +29,9 @@ interface NotificationDropdownProps {
     onMarkRead: (id: string) => void;
     onMarkAllRead: () => void;
     onClose: () => void;
+    onViewAll?: () => void;
     isOpen: boolean;
+    isMobile?: boolean;
 }
 
 const NotificationDropdown: React.FC<NotificationDropdownProps> = ({
@@ -39,7 +39,9 @@ const NotificationDropdown: React.FC<NotificationDropdownProps> = ({
     onMarkRead,
     onMarkAllRead,
     onClose,
-    isOpen
+    onViewAll,
+    isOpen,
+    isMobile = false
 }) => {
     const dropdownRef = useRef<HTMLDivElement>(null);
     const [resendingId, setResendingId] = useState<string | null>(null);
@@ -91,7 +93,7 @@ const NotificationDropdown: React.FC<NotificationDropdownProps> = ({
             case 'warning': return <Info className="h-4 w-4 text-yellow-500" />;
             case 'error': return <X className="h-4 w-4 text-red-500" />;
             case 'payment': return <CreditCard className="h-4 w-4 text-blue-500" />;
-            default: return <Bell className="h-4 w-4 text-muted-foreground" />;
+            default: return <BellIcon className="h-4 w-4 text-muted-foreground" />;
         }
     };
 
@@ -100,11 +102,16 @@ const NotificationDropdown: React.FC<NotificationDropdownProps> = ({
     return (
         <div
             ref={dropdownRef}
-            className="absolute top-full right-0 mt-3 w-80 md:w-96 bg-card/95 backdrop-blur-2xl border border-border/50 rounded-2xl shadow-2xl overflow-hidden z-[100] flex flex-col max-h-[500px]"
+            className={cn(
+                "absolute top-full mt-3 bg-card/95 backdrop-blur-2xl border border-border/50 rounded-2xl shadow-2xl overflow-hidden z-[100] flex flex-col max-h-[500px] transition-all duration-300",
+                isMobile
+                    ? "fixed top-20 right-4 left-4 w-auto sm:right-0 sm:left-auto sm:w-80"
+                    : "right-0 w-80 md:w-96"
+            )}
         >
             <div className="p-4 border-b border-border/30 flex items-center justify-between bg-muted/5">
                 <div className="flex items-center gap-2">
-                    <BellRing className="h-4 w-4 text-primary" />
+                    <BellIcon className="h-4 w-4 text-primary" />
                     <h3 className="font-bold text-sm tracking-wide">Notifications</h3>
                     {notifications.filter(n => !n.is_read).length > 0 && (
                         <span className="bg-primary text-primary-foreground text-[10px] px-1.5 py-0.5 rounded-full font-bold">
@@ -130,7 +137,7 @@ const NotificationDropdown: React.FC<NotificationDropdownProps> = ({
             <div className="overflow-y-auto flex-1 custom-scrollbar">
                 {notifications.length === 0 ? (
                     <div className="p-10 flex flex-col items-center justify-center text-center opacity-40">
-                        <Bell className="h-10 w-10 mb-2" />
+                        <BellIcon className="h-10 w-10 mb-2" />
                         <p className="text-xs font-medium">No notifications yet</p>
                     </div>
                 ) : (
@@ -187,7 +194,10 @@ const NotificationDropdown: React.FC<NotificationDropdownProps> = ({
             </div>
 
             <div className="p-3 border-t border-border/30 bg-muted/5 text-center">
-                <button className="text-[10px] font-bold uppercase tracking-widest text-muted-foreground hover:text-foreground transition-colors">
+                <button
+                    onClick={onViewAll}
+                    className="text-[10px] font-bold uppercase tracking-widest text-muted-foreground hover:text-foreground transition-colors w-full"
+                >
                     View all activity
                 </button>
             </div>
