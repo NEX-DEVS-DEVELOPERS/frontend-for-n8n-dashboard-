@@ -24,6 +24,7 @@ import NotificationDropdown, { Notification } from './components/NotificationDro
 import { authApi, n8nApi, agentsApi, notificationApi, dashboardApi } from './services/api';
 import { paymentApi, Product } from './services/paymentApi';
 import PaymentSuccessPage from './components/PaymentSuccessPage';
+import { notificationService } from './services/notificationService';
 
 type Page = 'dashboard' | 'howToUse' | 'support' | 'pricing' | 'subscription' | 'success';
 
@@ -128,6 +129,7 @@ const App: React.FC = () => {
     };
 
     validateAuth();
+    notificationService.requestPermission();
   }, []);
 
   // Animate dashboard cards and manage visibility based on welcome modal
@@ -840,10 +842,17 @@ const App: React.FC = () => {
     socket.on('new_notification', (notification: Notification) => {
       setNotifications(prev => [notification, ...prev]);
 
+      // Trigger browser notification
+      notificationService.showNotification(notification.title, {
+        body: notification.message,
+        tag: notification.id,
+        data: { url: window.location.origin }
+      });
+
       // Optional: Auto-show dropdown for critical notifications or play sound
-      // if (notification.type === 'error' || notification.type === 'support') {
-      //   setShowNotificationDropdown(true);
-      // }
+      if (notification.type === 'error' || notification.type === 'support') {
+        setShowNotificationDropdown(true);
+      }
     });
 
     // Listen for real-time n8n logs

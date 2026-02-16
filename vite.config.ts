@@ -14,7 +14,7 @@ export default defineConfig(({ mode }) => {
       react(),
       VitePWA({
         registerType: 'autoUpdate',
-        includeAssets: ['n8n-logo.svg', 'robots.txt', 'apple-touch-icon.png'],
+        includeAssets: ['n8n-logo.svg'],
         manifest: {
           name: 'NEX-DEVS N8N DASHBOARD',
           short_name: 'n8n Dash',
@@ -28,13 +28,19 @@ export default defineConfig(({ mode }) => {
               src: 'n8n-logo.svg',
               sizes: '192x192',
               type: 'image/svg+xml',
-              purpose: 'any maskable'
+              purpose: 'any'
             },
             {
               src: 'n8n-logo.svg',
               sizes: '512x512',
               type: 'image/svg+xml',
-              purpose: 'any maskable'
+              purpose: 'any'
+            },
+            {
+              src: 'n8n-logo.svg',
+              sizes: '192x192',
+              type: 'image/svg+xml',
+              purpose: 'maskable'
             }
           ]
         },

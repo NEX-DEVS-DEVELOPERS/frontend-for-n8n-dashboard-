@@ -16,15 +16,14 @@ interface ProcessLogProps {
 
 const ProcessLog: React.FC<ProcessLogProps> = ({ sessions, activeSessionId, onSelectSession, onCloseSession, onStopAgent, onShowAddAgentModal, onCreateLogSnapshot }) => {
   const terminalBodyRef = useRef<HTMLDivElement>(null);
-  const logsEndRef = useRef<HTMLDivElement>(null);
   const [isMinimized, setIsMinimized] = useState(false);
 
   const activeSession = sessions.find(s => s.id === activeSessionId) || null;
 
   // Auto-scroll to bottom when new logs arrive
   useEffect(() => {
-    if (logsEndRef.current && !isMinimized) {
-      logsEndRef.current.scrollIntoView({ behavior: 'smooth' });
+    if (terminalBodyRef.current && !isMinimized) {
+      terminalBodyRef.current.scrollTop = terminalBodyRef.current.scrollHeight;
     }
   }, [activeSession?.logs.length, isMinimized]);
 
@@ -32,10 +31,8 @@ const ProcessLog: React.FC<ProcessLogProps> = ({ sessions, activeSessionId, onSe
     switch (status) {
       case AgentStatus.Running:
         return 'bg-green-500 shadow-[0_0_5px_rgba(34,197,94,0.5)]';
-      case AgentStatus.Stopped:
+      case AgentStatus.Cancelled:
         return 'bg-red-500 shadow-[0_0_5px_rgba(239,68,68,0.5)]';
-      case AgentStatus.Paused:
-        return 'bg-yellow-500 shadow-[0_0_5px_rgba(234,179,8,0.5)]';
       default:
         return 'bg-gray-500';
     }
@@ -230,7 +227,7 @@ const ProcessLog: React.FC<ProcessLogProps> = ({ sessions, activeSessionId, onSe
                   <span className="text-cyan-600 dark:text-cyan-400">_</span>
                 </div>
               )}
-              <div ref={logsEndRef} />
+
             </div>
           ) : (
             <div className="h-full flex flex-col items-center justify-center text-gray-400 dark:text-gray-600 space-y-4 opacity-50">
